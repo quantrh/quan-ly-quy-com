@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SharePoint List Viewer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #0078d4;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .config-panel {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        button:hover {
+            background-color: #106ebe;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        .error {
+            color: #d83b01;
+            background-color: #fed9cc;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .success {
+            color: #107c10;
+            background-color: #dff6dd;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .pagination button {
+            margin: 0 5px;
+        }
+        #loginButton {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SharePoint List Viewer</h1>
+        
+        <button id="loginButton">Đăng nhập vào Microsoft</button>
+        
+        <div id="userInfo" style="display: none;">
+            <p>Đã đăng nhập: <span id="userName"></span></p>
+        </div>
+        
+        <div id="configPanel" class="config-panel" style="display: none;">
+            <div class="form-group">
+                <label for="siteUrl">SharePoint Site URL:</label>
+                <input type="text" id="siteUrl" placeholder="https://yourtenant.sharepoint.com/sites/yoursite" />
+            </div>
+            
+            <div class="form-group">
+                <label for="listName">Tên danh sách (List Name):</label>
+                <input type="text" id="listName" placeholder="Nhập tên danh sách" />
+            </div>
+            
+            <div class="form-group">
+                <label for="selectFields">Chọn trường dữ liệu cần hiển thị:</label>
+                <select id="selectFields" multiple size="5">
+                    <option value="Title">Title</option>
+                    <option value="Created">Created</option>
+                    <option value="Modified">Modified</option>
+                    <option value="Author">Author</option>
+                </select>
+                <small>Giữ Ctrl/Cmd để chọn nhiều trường</small>
+            </div>
+            
+            <button id="loadListsButton">Tải danh sách các List</button>
+            <div id="listsContainer" style="margin-top: 15px; display: none;">
+                <label for="listSelect">Chọn List:</label>
+                <select id="listSelect"></select>
+            </div>
+            
+            <button id="loadFieldsButton" style="margin-top: 15px; display: none;">Tải danh sách các trường</button>
+            <button id="loadDataButton" style="margin-top: 15px;">Tải dữ liệu</button>
+        </div>
+        
+        <div id="statusMessage"></div>
+        
+        <div id="loadingIndicator" class="loading" style="display: none;">
+            <p>Đang tải dữ liệu...</p>
+        </div>
+        
+        <div id="listData">
+            <table id="dataTable" style="display: none;">
+                <thead>
+                    <tr id="tableHeader"></tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+            
+            <div class="pagination" id="pagination" style="display: none;">
+                <button id="prevPage">Trang trước</button>
+                <span id="pageInfo">Trang 1</span>
+                <button id="nextPage">Trang sau</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Microsoft Authentication Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/msal/2.28.0/msal.min.js"></script>
+    
+    <script>
+        // Cấu hình MSAL
+        const msalConfig = {
+            auth: {
+                clientId: 'de0c1678-da2c-49e0-ac0a-608e69def7c2', // Thay thế bằng ID ứng dụng của bạn từ Azure AD
+                authority: 'https://login.microsoftonline.com/common',
+                redirectUri: window.location.origin + window.location.pathname,
+            },
+            cache: {
+                cacheLocation: 'localStorage',
+                storeAuthStateInCookie: true
+            }
+        };
+
+        // Khởi tạo MSAL
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+        
+        // Phạm vi (scopes) cần thiết cho SharePoint API
+        const scopes = [
+            'https://graph.microsoft.com/Sites.Read.All',
+            'https://graph.microsoft.com/Sites.ReadWrite.All'
+        ];
+        
+        // Biến toàn cục
+        let accessToken = null;
+        let currentPage = 1;
+        let itemsPerPage = 10;
+        let totalItems = 0;
+        let allItems = [];
+        
+        // Các phần tử DOM
+        const loginButton = document.getElementById('loginButton');
+        const userInfo = document.getElementById('userInfo');
+        const userName = document.getElementById('userName');
+        const configPanel = document.getElementById('configPanel');
+        const siteUrlInput = document.getElementById('siteUrl');
+        const listNameInput = document.getElementById('listName');
+        const selectFields = document.getElementById('selectFields');
+        const loadDataButton = document.getElementById('loadDataButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const statusMessage = document.getElementById('statusMessage');
+        const dataTable = document.getElementById('dataTable');
+        const tableHeader = document.getElementById('tableHeader');
+        const tableBody = document.getElementById('tableBody');
+        const pagination = document.getElementById('pagination');
+        const prevPageButton = document.getElementById('prevPage');
+        const nextPageButton = document.getElementById('nextPage');
+        const pageInfo = document.getElementById('pageInfo');
+        const loadListsButton = document.getElementById('loadListsButton');
+        const listsContainer = document.getElementById('listsContainer');
+        const listSelect = document.getElementById('listSelect');
+        const loadFieldsButton = document.getElementById('loadFieldsButton');
+        
+        // Kiểm tra nếu người dùng đã đăng nhập
+        function checkAuthStatus() {
+            const currentAccounts = msalInstance.getAllAccounts();
+            if (currentAccounts.length > 0) {
+                // Người dùng đã đăng nhập
+                const account = currentAccounts[0];
+                userName.textContent = account.name;
+                userInfo.style.display = 'block';
+                configPanel.style.display = 'block';
+                loginButton.textContent = 'Đăng xuất';
+                
+                // Lấy token truy cập
+                getAccessToken(account);
+            } else {
+                // Người dùng chưa đăng nhập
+                userInfo.style.display = 'none';
+                configPanel.style.display = 'none';
+                loginButton.textContent = 'Đăng nhập vào Microsoft';
+            }
+        }
+        
+        // Lấy token truy cập
+        async function getAccessToken(account) {
+            try {
+                const tokenResponse = await msalInstance.acquireTokenSilent({
+                    scopes: scopes,
+                    account: account
+                });
+                accessToken = tokenResponse.accessToken;
+            } catch (error) {
+                console.error('Error getting token silently:', error);
+                // Nếu không thể lấy token im lặng, thử lấy token với popup
+                await msalInstance.acquireTokenPopup({
+                    scopes: scopes
+                }).then(response => {
+                    accessToken = response.accessToken;
+                }).catch(err => {
+                    showError('Không thể lấy token xác thực: ' + err.message);
+                });
+            }
+        }
+        
+        // Đăng nhập với Microsoft
+        async function login() {
+            const currentAccounts = msalInstance.getAllAccounts();
+            
+            if (currentAccounts.length === 0) {
+                // Người dùng chưa đăng nhập, hiển thị giao diện đăng nhập
+                await msalInstance.loginPopup({
+                    scopes: scopes,
+                    prompt: 'select_account'
+                }).then(response => {
+                    // Đăng nhập thành công
+                    const account = response.account;
+                    accessToken = response.accessToken;
+                    userName.textContent = account.name;
+                    userInfo.style.display = 'block';
+                    configPanel.style.display = 'block';
+                    loginButton.textContent = 'Đăng xuất';
+                    showSuccess('Đăng nhập thành công!');
+                }).catch(error => {
+                    showError('Đăng nhập thất bại: ' + error.message);
+                });
+            } else {
+                // Người dùng đã đăng nhập, thực hiện đăng xuất
+                await msalInstance.logout();
+                userInfo.style.display = 'none';
+                configPanel.style.display = 'none';
+                loginButton.textContent = 'Đăng nhập vào Microsoft';
+                clearTable();
+                showSuccess('Đã đăng xuất.');
+            }
+        }
+        
+        // Tải danh sách các SharePoint List
+        async function loadLists() {
+            if (!accessToken) {
+                showError('Bạn cần đăng nhập trước!');
+                return;
+            }
+            
+            const siteUrl = siteUrlInput.value.trim();
+            if (!siteUrl) {
+                showError('Vui lòng nhập URL của site SharePoint!');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                // Lấy ID của site
+                const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/root:${new URL(siteUrl).pathname}`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!siteResponse.ok) {
+                    throw new Error(`Lỗi khi truy cập site: ${siteResponse.status} ${siteResponse.statusText}`);
+                }
+                
+                const siteData = await siteResponse.json();
+                const siteId = siteData.id;
+                
+                // Lấy danh sách các list trong site
+                const listsResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!listsResponse.ok) {
+                    throw new Error(`Lỗi khi lấy danh sách: ${listsResponse.status} ${listsResponse.statusText}`);
+                }
+                
+                const listsData = await listsResponse.json();
+                
+                // Hiển thị danh sách các list
+                listSelect.innerHTML = '';
+                listsData.value.forEach(list => {
+                    const option = document.createElement('option');
+                    option.value = list.name;
+                    option.textContent = list.displayName;
+                    listSelect.appendChild(option);
+                });
+                
+                listsContainer.style.display = 'block';
+                loadFieldsButton.style.display = 'block';
+                showSuccess('Đã tải danh sách các List thành công!');
+            } catch (error) {
+                showError('Lỗi khi tải danh sách các List: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Tải danh sách các trường trong List
+        async function loadFields() {
+            if (!accessToken) {
+                showError('Bạn cần đăng nhập trước!');
+                return;
+            }
+            
+            const siteUrl = siteUrlInput.value.trim();
+            const listName = listSelect.value;
+            
+            if (!siteUrl || !listName) {
+                showError('Vui lòng nhập URL của site SharePoint và chọn List!');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                // Lấy ID của site
+                const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/root:${new URL(siteUrl).pathname}`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!siteResponse.ok) {
+                    throw new Error(`Lỗi khi truy cập site: ${siteResponse.status} ${siteResponse.statusText}`);
+                }
+                
+                const siteData = await siteResponse.json();
+                const siteId = siteData.id;
+                
+                // Lấy thông tin về list
+                const listResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listName}/columns`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!listResponse.ok) {
+                    throw new Error(`Lỗi khi lấy thông tin list: ${listResponse.status} ${listResponse.statusText}`);
+                }
+                
+                const listData = await listResponse.json();
+                
+                // Hiển thị danh sách các trường
+                selectFields.innerHTML = '';
+                listData.value.forEach(column => {
+                    if (!column.readOnly) {  // Chỉ hiển thị các trường không chỉ đọc
+                        const option = document.createElement('option');
+                        option.value = column.name;
+                        option.textContent = column.displayName;
+                        selectFields.appendChild(option);
+                    }
+                });
+                
+                // Tự động cập nhật tên list
+                listNameInput.value = listSelect.options[listSelect.selectedIndex].textContent;
+                
+                showSuccess('Đã tải danh sách các trường thành công!');
+            } catch (error) {
+                showError('Lỗi khi tải danh sách các trường: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Tải dữ liệu từ SharePoint List
+        async function loadData() {
+            if (!accessToken) {
+                showError('Bạn cần đăng nhập trước!');
+                return;
+            }
+            
+            const siteUrl = siteUrlInput.value.trim();
+            const listName = listSelect.value || listNameInput.value.trim();
+            
+            if (!siteUrl || !listName) {
+                showError('Vui lòng nhập URL của site SharePoint và tên List!');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                // Lấy ID của site
+                const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/root:${new URL(siteUrl).pathname}`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!siteResponse.ok) {
+                    throw new Error(`Lỗi khi truy cập site: ${siteResponse.status} ${siteResponse.statusText}`);
+                }
+                
+                const siteData = await siteResponse.json();
+                const siteId = siteData.id;
+                
+                // Lấy các mục trong list
+                const listItemsResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listName}/items?expand=fields`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!listItemsResponse.ok) {
+                    throw new Error(`Lỗi khi lấy dữ liệu list: ${listItemsResponse.status} ${listItemsResponse.statusText}`);
+                }
+                
+                const listItemsData = await listItemsResponse.json();
+                allItems = listItemsData.value;
+                totalItems = allItems.length;
+                
+                // Lấy danh sách các trường được chọn
+                const selectedFields = Array.from(selectFields.selectedOptions).map(option => option.value);
+                
+                // Nếu không có trường nào được chọn, sử dụng tất cả các trường
+                let fieldsToDisplay = selectedFields.length > 0 ? selectedFields : 
+                    Object.keys(allItems[0]?.fields || {}).filter(key => !key.startsWith('_'));
+                
+                // Tạo header cho bảng
+                tableHeader.innerHTML = '';
+                fieldsToDisplay.forEach(field => {
+                    const th = document.createElement('th');
+                    th.textContent = field;
+                    tableHeader.appendChild(th);
+                });
+                
+                // Hiển thị dữ liệu trang đầu tiên
+                currentPage = 1;
+                displayPage(currentPage);
+                
+                // Hiển thị bảng và phân trang
+                dataTable.style.display = 'table';
+                pagination.style.display = 'flex';
+                
+                showSuccess(`Đã tải ${totalItems} mục từ danh sách "${listNameInput.value}"!`);
+            } catch (error) {
+                showError('Lỗi khi tải dữ liệu: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Hiển thị dữ liệu theo trang
+        function displayPage(page) {
+            tableBody.innerHTML = '';
+            
+            if (allItems.length === 0) {
+                return;
+            }
+            
+            // Tính vị trí bắt đầu và kết thúc
+            const startIndex = (page - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+            
+            // Lấy danh sách các trường được chọn
+            const selectedFields = Array.from(selectFields.selectedOptions).map(option => option.value);
+            let fieldsToDisplay = selectedFields.length > 0 ? selectedFields : 
+                Object.keys(allItems[0]?.fields || {}).filter(key => !key.startsWith('_'));
+            
+            // Hiển thị dữ liệu
+            for (let i = startIndex; i < endIndex; i++) {
+                const item = allItems[i];
+                const tr = document.createElement('tr');
+                
+                fieldsToDisplay.forEach(field => {
+                    const td = document.createElement('td');
+                    let value = item.fields[field];
+                    
+                    // Xử lý hiển thị giá trị
+                    if (value === null || value === undefined) {
+                        td.textContent = '';
+                    } else if (typeof value === 'object') {
+                        td.textContent = JSON.stringify(value);
+                    } else {
+                        td.textContent = value;
+                    }
+                    
+                    tr.appendChild(td);
+                });
+                
+                tableBody.appendChild(tr);
+            }
+            
+            // Cập nhật thông tin trang
+            pageInfo.textContent = `Trang ${page} / ${Math.ceil(totalItems / itemsPerPage)}`;
+            
+            // Kích hoạt/vô hiệu hóa nút phân trang
+            prevPageButton.disabled = page === 1;
+            nextPageButton.disabled = endIndex >= totalItems;
+        }
+        
+        // Xử lý hiển thị trang trước
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                displayPage(currentPage);
+            }
+        }
+        
+        // Xử lý hiển thị trang sau
+        function nextPage() {
+            if (currentPage < Math.ceil(totalItems / itemsPerPage)) {
+                currentPage++;
+                displayPage(currentPage);
+            }
+        }
+        
+        // Xóa bảng dữ liệu
+        function clearTable() {
+            tableHeader.innerHTML = '';
+            tableBody.innerHTML = '';
+            dataTable.style.display = 'none';
+            pagination.style.display = 'none';
+        }
+        
+        // Hiển thị thông báo lỗi
+        function showError(message) {
+            statusMessage.className = 'error';
+            statusMessage.textContent = message;
+            setTimeout(() => {
+                statusMessage.textContent = '';
+                statusMessage.className = '';
+            }, 5000);
+        }
+        
+        // Hiển thị thông báo thành công
+        function showSuccess(message) {
+            statusMessage.className = 'success';
+            statusMessage.textContent = message;
+            setTimeout(() => {
+                statusMessage.textContent = '';
+                statusMessage.className = '';
+            }, 5000);
+        }
+        
+        // Hiển thị/ẩn trạng thái đang tải
+        function showLoading(isLoading) {
+            loadingIndicator.style.display = isLoading ? 'block' : 'none';
+        }
+        
+        // Xử lý sự kiện
+        loginButton.addEventListener('click', login);
+        loadDataButton.addEventListener('click', loadData);
+        prevPageButton.addEventListener('click', prevPage);
+        nextPageButton.addEventListener('click', nextPage);
+        loadListsButton.addEventListener('click', loadLists);
+        loadFieldsButton.addEventListener('click', loadFields);
+        
+        // Kiểm tra trạng thái đăng nhập khi trang tải xong
+        window.addEventListener('load', () => {
+            checkAuthStatus();
+            
+            // Xử lý phản hồi từ đăng nhập
+            msalInstance.handleRedirectPromise()
+                .then(response => {
+                    if (response) {
+                        checkAuthStatus();
+                    }
+                })
+                .catch(error => {
+                    console.error('Lỗi khi xử lý chuyển hướng:', error);
+                });
+        });
+    </script>
+</body>
+</html>
