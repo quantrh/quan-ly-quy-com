@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Quỹ Cơm</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #0078d4;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .card {
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex: 1;
+            min-width: 300px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #005a9e;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        .tab.active {
+            border-bottom: 2px solid #0078d4;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .summary {
+            display: flex;
+            justify-content: space-between;
+            background-color: #e6f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .summary-item {
+            text-align: center;
+        }
+        .summary-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0078d4;
+        }
+        .error {
+            color: #d83b01;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Quản Lý Quỹ Cơm</h1>
+    </div>
+
+    <div class="summary">
+        <div class="summary-item">
+            <div>Tổng số tiền</div>
+            <div class="summary-value" id="total-amount">0 VNĐ</div>
+        </div>
+        <div class="summary-item">
+            <div>Số thành viên</div>
+            <div class="summary-value" id="member-count">0</div>
+        </div>
+        <div class="summary-item">
+            <div>Chi tiêu tháng này</div>
+            <div class="summary-value" id="expense-month">0 VNĐ</div>
+        </div>
+        <div class="summary-item">
+            <div>Còn lại</div>
+            <div class="summary-value" id="remaining">0 VNĐ</div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="dashboard">Tổng quan</div>
+        <div class="tab" data-tab="contribution">Đóng góp</div>
+        <div class="tab" data-tab="expense">Chi tiêu</div>
+        <div class="tab" data-tab="members">Thành viên</div>
+        <div class="tab" data-tab="reports">Báo cáo</div>
+    </div>
+
+    <div class="tab-content active" id="dashboard">
+        <div class="container">
+            <div class="card">
+                <h2>Hoạt động gần đây</h2>
+                <table id="recent-activities">
+                    <thead>
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Hoạt động</th>
+                            <th>Thành viên</th>
+                            <th>Số tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dữ liệu sẽ được cập nhật từ SharePoint -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="card">
+                <h2>Thống kê</h2>
+                <div id="chart-placeholder" style="height: 300px; display: flex; align-items: center; justify-content: center; background-color: #f2f2f2;">
+                    Biểu đồ thống kê sẽ được hiển thị tại đây
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="contribution">
+        <div class="container">
+            <div class="card">
+                <h2>Thêm đóng góp mới</h2>
+                <form id="contribution-form">
+                    <div class="form-group">
+                        <label for="member-name">Thành viên:</label>
+                        <select id="member-name" required>
+                            <option value="">-- Chọn thành viên --</option>
+                            <!-- Các tùy chọn sẽ được cập nhật từ SharePoint -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="amount">Số tiền:</label>
+                        <input type="number" id="amount" min="0" placeholder="VD: 100000" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="contribution-date">Ngày đóng góp:</label>
+                        <input type="date" id="contribution-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="contribution-note">Ghi chú:</label>
+                        <textarea id="contribution-note" rows="3"></textarea>
+                    </div>
+                    <button type="submit">Xác nhận đóng góp</button>
+                </form>
+            </div>
+            <div class="card">
+                <h2>Lịch sử đóng góp</h2>
+                <table id="contribution-history">
+                    <thead>
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Thành viên</th>
+                            <th>Số tiền</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dữ liệu sẽ được cập nhật từ SharePoint -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="expense">
+        <div class="container">
+            <div class="card">
+                <h2>Thêm chi tiêu mới</h2>
+                <form id="expense-form">
+                    <div class="form-group">
+                        <label for="expense-description">Mô tả:</label>
+                        <input type="text" id="expense-description" placeholder="VD: Cơm trưa ngày 15/04/2025" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="expense-amount">Số tiền:</label>
+                        <input type="number" id="expense-amount" min="0" placeholder="VD: 50000" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="expense-date">Ngày chi tiêu:</label>
+                        <input type="date" id="expense-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="expense-category">Danh mục:</label>
+                        <select id="expense-category" required>
+                            <option value="">-- Chọn danh mục --</option>
+                            <option value="food">Thức ăn</option>
+                            <option value="drink">Đồ uống</option>
+                            <option value="supplies">Vật dụng</option>
+                            <option value="other">Khác</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="paid-by">Người chi:</label>
+                        <select id="paid-by" required>
+                            <option value="">-- Chọn người chi --</option>
+                            <!-- Các tùy chọn sẽ được cập nhật từ SharePoint -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="expense-note">Ghi chú:</label>
+                        <textarea id="expense-note" rows="3"></textarea>
+                    </div>
+                    <button type="submit">Thêm chi tiêu</button>
+                </form>
+            </div>
+            <div class="card">
+                <h2>Lịch sử chi tiêu</h2>
+                <table id="expense-history">
+                    <thead>
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Mô tả</th>
+                            <th>Danh mục</th>
+                            <th>Người chi</th>
+                            <th>Số tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dữ liệu sẽ được cập nhật từ SharePoint -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="members">
+        <div class="container">
+            <div class="card">
+                <h2>Thêm thành viên mới</h2>
+                <form id="member-form">
+                    <div class="form-group">
+                        <label for="member-fullname">Họ và tên:</label>
+                        <input type="text" id="member-fullname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="member-email">Email:</label>
+                        <input type="email" id="member-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="member-phone">Số điện thoại:</label>
+                        <input type="tel" id="member-phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="member-department">Phòng ban:</label>
+                        <input type="text" id="member-department">
+                    </div>
+                    <button type="submit">Thêm thành viên</button>
+                </form>
+            </div>
+            <div class="card">
+                <h2>Danh sách thành viên</h2>
+                <table id="members-list">
+                    <thead>
+                        <tr>
+                            <th>Họ và tên</th>
+                            <th>Email</th>
+                            <th>Số điện thoại</th>
+                            <th>Phòng ban</th>
+                            <th>Tổng đóng góp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dữ liệu sẽ được cập nhật từ SharePoint -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="reports">
+        <div class="container">
+            <div class="card">
+                <h2>Báo cáo theo thời gian</h2>
+                <div class="form-group">
+                    <label for="report-from">Từ ngày:</label>
+                    <input type="date" id="report-from">
+                </div>
+                <div class="form-group">
+                    <label for="report-to">Đến ngày:</label>
+                    <input type="date" id="report-to">
+                </div>
+                <button id="generate-report">Tạo báo cáo</button>
+                <div id="report-result" style="margin-top: 20px;">
+                    <!-- Kết quả báo cáo sẽ được hiển thị tại đây -->
+                </div>
+            </div>
+            <div class="card">
+                <h2>Xuất báo cáo</h2>
+                <button id="export-excel">Xuất Excel</button>
+                <button id="export-pdf" style="margin-left: 10px;">Xuất PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // JavaScript để xử lý chuyển tab
+        document.addEventListener('DOMContentLoaded', function() {
+            // Xử lý chuyển tab
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Loại bỏ active class từ tất cả các tab
+                    tabs.forEach(t => t.classList.remove('active'));
+                    // Thêm active class cho tab được click
+                    tab.classList.add('active');
+                    
+                    // Ẩn tất cả nội dung tab
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // Hiển thị nội dung của tab được chọn
+                    const targetId = tab.getAttribute('data-tab');
+                    document.getElementById(targetId).classList.add('active');
+                });
+            });
+
+            // Khởi tạo ngày hiện tại cho các trường date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('contribution-date').value = today;
+            document.getElementById('expense-date').value = today;
+            
+            // Xử lý form đóng góp
+            document.getElementById('contribution-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                // Gửi dữ liệu đến SharePoint thông qua REST API hoặc Power Automate
+                alert('Đã ghi nhận đóng góp. Dữ liệu sẽ được gửi đến SharePoint.');
+                this.reset();
+                document.getElementById('contribution-date').value = today;
+            });
+            
+            // Xử lý form chi tiêu
+            document.getElementById('expense-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                // Gửi dữ liệu đến SharePoint thông qua REST API hoặc Power Automate
+                alert('Đã ghi nhận chi tiêu. Dữ liệu sẽ được gửi đến SharePoint.');
+                this.reset();
+                document.getElementById('expense-date').value = today;
+            });
+            
+            // Xử lý form thành viên
+            document.getElementById('member-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                // Gửi dữ liệu đến SharePoint thông qua REST API hoặc Power Automate
+                alert('Đã thêm thành viên mới. Dữ liệu sẽ được gửi đến SharePoint.');
+                this.reset();
+            });
+            
+            // Xử lý nút tạo báo cáo
+            document.getElementById('generate-report').addEventListener('click', function() {
+                const fromDate = document.getElementById('report-from').value;
+                const toDate = document.getElementById('report-to').value;
+                
+                if (!fromDate || !toDate) {
+                    alert('Vui lòng chọn khoảng thời gian để tạo báo cáo.');
+                    return;
+                }
+                
+                // Gọi API SharePoint để lấy dữ liệu báo cáo
+                // Hiển thị kết quả trong #report-result
+                document.getElementById('report-result').innerHTML = '<p>Đang tải dữ liệu báo cáo...</p>';
+                
+                // Mô phỏng lấy dữ liệu
+                setTimeout(() => {
+                    document.getElementById('report-result').innerHTML = `
+                        <h3>Báo cáo từ ${fromDate} đến ${toDate}</h3>
+                        <p>Tổng thu: 2,500,000 VNĐ</p>
+                        <p>Tổng chi: 1,800,000 VNĐ</p>
+                        <p>Còn lại: 700,000 VNĐ</p>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Danh mục</th>
+                                    <th>Số tiền</th>
+                                    <th>Tỷ lệ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Thức ăn</td>
+                                    <td>1,500,000 VNĐ</td>
+                                    <td>83.3%</td>
+                                </tr>
+                                <tr>
+                                    <td>Đồ uống</td>
+                                    <td>200,000 VNĐ</td>
+                                    <td>11.1%</td>
+                                </tr>
+                                <tr>
+                                    <td>Khác</td>
+                                    <td>100,000 VNĐ</td>
+                                    <td>5.6%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                }, 1000);
+            });
+            
+            // Xử lý nút xuất báo cáo
+            document.getElementById('export-excel').addEventListener('click', function() {
+                alert('Chức năng xuất Excel sẽ được kết nối với SharePoint và Power Automate');
+            });
+            
+            document.getElementById('export-pdf').addEventListener('click', function() {
+                alert('Chức năng xuất PDF sẽ được kết nối với SharePoint và Power Automate');
+            });
+
+            // Mẫu dữ liệu để hiển thị UI
+            // Trong thực tế, dữ liệu này sẽ được lấy từ SharePoint
+            displaySampleData();
+        });
+
+        // Hàm hiển thị dữ liệu mẫu
+        function displaySampleData() {
+            // Tổng quan
+            document.getElementById('total-amount').textContent = '3,500,000 VNĐ';
+            document.getElementById('member-count').textContent = '10';
+            document.getElementById('expense-month').textContent = '2,800,000 VNĐ';
+            document.getElementById('remaining').textContent = '700,000 VNĐ';
+            
+            // Hoạt động gần đây
+            const recentActivities = [
+                { date: '19/04/2025', activity: 'Đóng góp', member: 'Nguyễn Văn A', amount: '500,000 VNĐ' },
+                { date: '18/04/2025', activity: 'Chi tiêu', member: 'Trần Thị B', amount: '200,000 VNĐ' },
+                { date: '17/04/2025', activity: 'Đóng góp', member: 'Lê Văn C', amount: '300,000 VNĐ' },
+                { date: '15/04/2025', activity: 'Chi tiêu', member: 'Phạm Thị D', amount: '150,000 VNĐ' }
+            ];
+            
+            const recentTable = document.querySelector('#recent-activities tbody');
+            recentTable.innerHTML = '';
+            recentActivities.forEach(item => {
+                recentTable.innerHTML += `
+                    <tr>
+                        <td>${item.date}</td>
+                        <td>${item.activity}</td>
+                        <td>${item.member}</td>
+                        <td>${item.amount}</td>
+                    </tr>
+                `;
+            });
+            
+            // Lịch sử đóng góp
+            const contributions = [
+                { date: '19/04/2025', member: 'Nguyễn Văn A', amount: '500,000 VNĐ', note: 'Đóng góp tháng 4' },
+                { date: '17/04/2025', member: 'Lê Văn C', amount: '300,000 VNĐ', note: 'Đóng góp tháng 4' },
+                { date: '10/04/2025', member: 'Đỗ Thị E', amount: '500,000 VNĐ', note: 'Đóng góp tháng 4' },
+                { date: '05/04/2025', member: 'Vũ Văn F', amount: '300,000 VNĐ', note: 'Đóng góp tháng 4' }
+            ];
+            
+            const contributionTable = document.querySelector('#contribution-history tbody');
+            contributionTable.innerHTML = '';
+            contributions.forEach(item => {
+                contributionTable.innerHTML += `
+                    <tr>
+                        <td>${item.date}</td>
+                        <td>${item.member}</td>
+                        <td>${item.amount}</td>
+                        <td>${item.note}</td>
+                    </tr>
+                `;
+            });
+            
+            // Lịch sử chi tiêu
+            const expenses = [
+                { date: '18/04/2025', description: 'Cơm trưa văn phòng', category: 'Thức ăn', paidBy: 'Trần Thị B', amount: '200,000 VNĐ' },
+                { date: '15/04/2025', description: 'Nước uống văn phòng', category: 'Đồ uống', paidBy: 'Phạm Thị D', amount: '150,000 VNĐ' },
+                { date: '12/04/2025', description: 'Cơm trưa cuối tuần', category: 'Thức ăn', paidBy: 'Nguyễn Văn A', amount: '250,000 VNĐ' },
+                { date: '08/04/2025', description: 'Bánh kẹo văn phòng', category: 'Thức ăn', paidBy: 'Lê Văn C', amount: '100,000 VNĐ' }
+            ];
+            
+            const expenseTable = document.querySelector('#expense-history tbody');
+            expenseTable.innerHTML = '';
+            expenses.forEach(item => {
+                expenseTable.innerHTML += `
+                    <tr>
+                        <td>${item.date}</td>
+                        <td>${item.description}</td>
+                        <td>${item.category}</td>
+                        <td>${item.paidBy}</td>
+                        <td>${item.amount}</td>
+                    </tr>
+                `;
+            });
+            
+            // Danh sách thành viên
+            const members = [
+                { name: 'Nguyễn Văn A', email: 'nguyenvana@example.com', phone: '0901234567', department: 'Kế toán', total: '1,000,000 VNĐ' },
+                { name: 'Trần Thị B', email: 'tranthib@example.com', phone: '0909876543', department: 'Nhân sự', total: '800,000 VNĐ' },
+                { name: 'Lê Văn C', email: 'levanc@example.com', phone: '0908765432', department: 'IT', total: '700,000 VNĐ' },
+                { name: 'Phạm Thị D', email: 'phamthid@example.com', phone: '0907654321', department: 'Marketing', total: '500,000 VNĐ' },
+                { name: 'Đỗ Thị E', email: 'dothie@example.com', phone: '0906543210', department: 'Kinh doanh', total: '500,000 VNĐ' }
+            ];
+            
+            const membersTable = document.querySelector('#members-list tbody');
+            membersTable.innerHTML = '';
+            members.forEach(item => {
+                membersTable.innerHTML += `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.email}</td>
+                        <td>${item.phone}</td>
+                        <td>${item.department}</td>
+                        <td>${item.total}</td>
+                    </tr>
+                `;
+            });
+            
+            // Cập nhật danh sách thành viên cho dropdown
+            const memberDropdowns = [document.getElementById('member-name'), document.getElementById('paid-by')];
+            memberDropdowns.forEach(dropdown => {
+                if (dropdown) {
+                    members.forEach(member => {
+                        const option = document.createElement('option');
+                        option.value = member.name;
+                        option.textContent = member.name;
+                        dropdown.appendChild(option);
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>
