@@ -342,28 +342,53 @@
             }
         });
         
-        // Sự kiện lưu thông tin xác thực
-        saveCredentialsBtn.addEventListener('click', function() {
-            const newClientId = clientIdInput.value.trim();
-            const newClientSecret = clientSecretInput.value.trim();
-            const newRedirectUri = redirectUriInput.value.trim();
-            
-            if (!newClientId || !newClientSecret || !newRedirectUri) {
-                showCredentialsStatus('Vui lòng nhập đầy đủ thông tin.', 'error');
-                return;
-            }
-            
-            // Lưu thông tin vào biến và localStorage
-            clientId = newClientId;
-            clientSecret = newClientSecret;
-            redirectUri = newRedirectUri;
-            
-            localStorage.setItem('stravaClientId', clientId);
-            localStorage.setItem('stravaClientSecret', clientSecret);
-            localStorage.setItem('stravaRedirectUri', redirectUri);
-            
-            showCredentialsStatus('Đã lưu thông tin xác thực!', 'success');
-        });
+       // Sự kiện lưu thông tin xác thực
+saveCredentialsBtn.addEventListener('click', function() {
+    const newClientId = clientIdInput.value.trim();
+    const newClientSecret = clientSecretInput.value.trim();
+    const newRedirectUri = redirectUriInput.value.trim();
+    
+    if (!newClientId || !newClientSecret || !newRedirectUri) {
+        showCredentialsStatus('Vui lòng nhập đầy đủ thông tin.', 'error');
+        return;
+    }
+    
+    try {
+        // Lưu thông tin vào biến và localStorage
+        clientId = newClientId;
+        clientSecret = newClientSecret;
+        redirectUri = newRedirectUri;
+        
+        localStorage.setItem('stravaClientId', clientId);
+        localStorage.setItem('stravaClientSecret', clientSecret);
+        localStorage.setItem('stravaRedirectUri', redirectUri);
+        
+        showCredentialsStatus('Đã lưu thông tin xác thực thành công!', 'success');
+        console.log('Đã lưu thông tin xác thực:', { clientId, redirectUri });
+    } catch (error) {
+        console.error('Lỗi khi lưu thông tin:', error);
+        showCredentialsStatus('Lỗi khi lưu thông tin: ' + error.message, 'error');
+    }
+});
+
+// Hiển thị thông báo trạng thái thông tin xác thực
+function showCredentialsStatus(message, type) {
+    console.log('Thông báo:', message, type);
+    if (!credentialsStatus) {
+        console.error('Không tìm thấy phần tử credentialsStatus');
+        alert(message);
+        return;
+    }
+    
+    credentialsStatus.textContent = message;
+    credentialsStatus.className = `status ${type}`;
+    credentialsStatus.classList.remove('hidden');
+    
+    // Tự động ẩn sau 5 giây
+    setTimeout(() => {
+        credentialsStatus.classList.add('hidden');
+    }, 5000);
+};
         
         // Sự kiện nút kết nối với Strava
         authorizeBtn.addEventListener('click', function() {
