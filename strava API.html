@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lấy dữ liệu GPS từ Strava</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        h1 {
+            color: #FC4C02;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn {
+            background-color: #FC4C02;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        
+        .btn:hover {
+            background-color: #E34402;
+        }
+        
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        #activityList {
+            margin-top: 20px;
+        }
+        
+        .activity-item {
+            background-color: white;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .activity-item h3 {
+            margin-top: 0;
+            color: #FC4C02;
+        }
+        
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .error {
+            background-color: #ffeeee;
+            color: #d32f2f;
+        }
+        
+        .success {
+            background-color: #eeffee;
+            color: #388e3c;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Lấy dữ liệu GPS từ Strava</h1>
+    
+    <div class="container">
+        <p>Ứng dụng này cho phép bạn kết nối với tài khoản Strava của mình và tải về dữ liệu GPS từ các hoạt động của bạn.</p>
+        
+        <div id="statusMessage" class="status hidden"></div>
+        
+        <div id="authSection">
+            <p>Bước 1: Kết nối với tài khoản Strava của bạn.</p>
+            <button id="authorizeBtn" class="btn">Kết nối với Strava</button>
+        </div>
+        
+        <div id="activitiesSection" class="hidden">
+            <p>Bước 2: Lấy danh sách hoạt động gần đây của bạn.</p>
+            <button id="getActivitiesBtn" class="btn">Lấy danh sách hoạt động</button>
+            
+            <div id="activityList"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Cấu hình ứng dụng Strava
+        const clientId = '55949'; // Thay thế bằng Client ID của bạn từ Strava API
+        const redirectUri = window.location.href;
+        
+        // Các phần tử DOM
+        const authorizeBtn = document.getElementById('authorizeBtn');
+        const getActivitiesBtn = document.getElementById('getActivitiesBtn');
+        const activityList = document.getElementById('activityList');
+        const authSection = document.getElementById('authSection');
+        const activitiesSection = document.getElementById('activitiesSection');
+        const statusMessage = document.getElementById('statusMessage');
+        
+        // Biến lưu trữ
+        let accessToken = null;
+        
+        // Xử lý khi trang được tải
+        document.addEventListener('DOMContentLoaded', function() {
+            // Kiểm tra nếu có mã xác thực từ Strava sau khi redirect
+            const urlParams = new URLSearchParams(window.location.search);
+            const authorizationCode = urlParams.get('code');
+            
+            if (authorizationCode) {
+                // Đã nhận được mã xác thực, tiến hành lấy access token
+                showStatus('Đang xác thực với Strava...', 'success');
+                exchangeCodeForToken(authorizationCode);
+            }
+        });
+        
+        // Sự kiện nút kết nối với Strava
+        authorizeBtn.addEventListener('click', function() {
+            const scope = 'read,activity:read';
+            const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+            window.location.href = authUrl;
+        });
+        
+        // Sự kiện nút lấy danh sách hoạt động
+        getActivitiesBtn.addEventListener('click', function() {
+            if (accessToken) {
+                getActivities();
+            } else {
+                showStatus('Vui lòng kết nối với Strava trước', 'error');
+            }
+        });
+        
+        // Trao đổi mã xác thực lấy access token
+        function exchangeCodeForToken(code) {
+            const tokenUrl = 'https://www.strava.com/oauth/token';
+            const data = {
+                client_id: clientId,
+                client_secret: 'c710bdd65acd66b7ce99db734e9850f04bb5ad83', // Thay thế bằng Client Secret của bạn
+                code: code,
+                grant_type: 'authorization_code'
+            };
+            
+            fetch(tokenUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(tokenData => {
+                accessToken = tokenData.access_token;
+                showStatus('Đã kết nối thành công với Strava!', 'success');
+                
+                // Hiển thị phần lấy hoạt động
+                authSection.classList.add('hidden');
+                activitiesSection.classList.remove('hidden');
+            })
+            .catch(error => {
+                showStatus('Lỗi khi xác thực: ' + error.message, 'error');
+                console.error('Error exchanging token:', error);
+            });
+        }
+        
+        // Lấy danh sách hoạt động
+        function getActivities() {
+            showStatus('Đang tải danh sách hoạt động...', 'success');
+            
+            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=10', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            })
+            .then(response => response.json())
+            .then(activities => {
+                showStatus('Đã tải danh sách hoạt động thành công!', 'success');
+                displayActivities(activities);
+            })
+            .catch(error => {
+                showStatus('Lỗi khi tải hoạt động: ' + error.message, 'error');
+                console.error('Error fetching activities:', error);
+            });
+        }
+        
+        // Hiển thị danh sách hoạt động
+        function displayActivities(activities) {
+            activityList.innerHTML = '';
+            
+            if (activities.length === 0) {
+                activityList.innerHTML = '<p>Không tìm thấy hoạt động nào.</p>';
+                return;
+            }
+            
+            activities.forEach(activity => {
+                const activityItem = document.createElement('div');
+                activityItem.className = 'activity-item';
+                
+                const date = new Date(activity.start_date).toLocaleDateString('vi-VN');
+                
+                activityItem.innerHTML = `
+                    <h3>${activity.name}</h3>
+                    <p>Ngày: ${date}</p>
+                    <p>Loại: ${activity.type}</p>
+                    <p>Quãng đường: ${(activity.distance / 1000).toFixed(2)} km</p>
+                    <p>Thời gian: ${formatDuration(activity.moving_time)}</p>
+                    <button class="btn download-gpx" data-id="${activity.id}">Tải GPX</button>
+                    <button class="btn view-details" data-id="${activity.id}">Xem chi tiết</button>
+                `;
+                
+                activityList.appendChild(activityItem);
+            });
+            
+            // Thêm sự kiện cho các nút tải GPX
+            document.querySelectorAll('.download-gpx').forEach(button => {
+                button.addEventListener('click', function() {
+                    const activityId = this.getAttribute('data-id');
+                    downloadGpx(activityId);
+                });
+            });
+            
+            // Thêm sự kiện cho các nút xem chi tiết
+            document.querySelectorAll('.view-details').forEach(button => {
+                button.addEventListener('click', function() {
+                    const activityId = this.getAttribute('data-id');
+                    viewActivityDetails(activityId);
+                });
+            });
+        }
+        
+        // Tải dữ liệu GPX
+        function downloadGpx(activityId) {
+            showStatus('Đang tải dữ liệu GPX...', 'success');
+            
+            fetch(`https://www.strava.com/api/v3/activities/${activityId}/streams?keys=latlng,time,altitude&key_by_type=true`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            })
+            .then(response => response.json())
+            .then(streams => {
+                const gpxContent = generateGpx(streams, activityId);
+                downloadFile(gpxContent, `strava-activity-${activityId}.gpx`, 'application/gpx+xml');
+                showStatus('Đã tải dữ liệu GPX thành công!', 'success');
+            })
+            .catch(error => {
+                showStatus('Lỗi khi tải dữ liệu GPX: ' + error.message, 'error');
+                console.error('Error fetching GPX data:', error);
+            });
+        }
+        
+        // Xem chi tiết hoạt động
+        function viewActivityDetails(activityId) {
+            fetch(`https://www.strava.com/api/v3/activities/${activityId}?include_all_efforts=true`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            })
+            .then(response => response.json())
+            .then(activityDetails => {
+                const modalContent = document.createElement('div');
+                modalContent.className = 'activity-item';
+                modalContent.innerHTML = `
+                    <h3>${activityDetails.name}</h3>
+                    <p>Mô tả: ${activityDetails.description || 'Không có mô tả'}</p>
+                    <p>Ngày: ${new Date(activityDetails.start_date).toLocaleDateString('vi-VN')}</p>
+                    <p>Loại: ${activityDetails.type}</p>
+                    <p>Quãng đường: ${(activityDetails.distance / 1000).toFixed(2)} km</p>
+                    <p>Thời gian di chuyển: ${formatDuration(activityDetails.moving_time)}</p>
+                    <p>Thời gian tổng: ${formatDuration(activityDetails.elapsed_time)}</p>
+                    <p>Tốc độ trung bình: ${(activityDetails.average_speed * 3.6).toFixed(2)} km/h</p>
+                    <p>Độ cao tăng: ${activityDetails.total_elevation_gain} m</p>
+                    <pre>${JSON.stringify(activityDetails, null, 2)}</pre>
+                `;
+                
+                activityList.innerHTML = '';
+                activityList.appendChild(modalContent);
+                
+                // Thêm nút quay lại
+                const backButton = document.createElement('button');
+                backButton.className = 'btn';
+                backButton.innerText = 'Quay lại danh sách';
+                backButton.addEventListener('click', getActivities);
+                activityList.appendChild(backButton);
+            })
+            .catch(error => {
+                showStatus('Lỗi khi tải chi tiết hoạt động: ' + error.message, 'error');
+                console.error('Error fetching activity details:', error);
+            });
+        }
+        
+        // Tạo tệp GPX từ dữ liệu streams
+        function generateGpx(streams, activityId) {
+            // Lấy ngày bắt đầu (sử dụng thời gian hiện tại nếu không có)
+            const startTime = new Date();
+            
+            // Tạo header GPX
+            let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx creator="Strava GPS Data Extractor" version="1.1" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>Activity ${activityId}</name>
+    <time>${startTime.toISOString()}</time>
+  </metadata>
+  <trk>
+    <name>Activity ${activityId}</name>
+    <trkseg>`;
+            
+            // Nếu không có dữ liệu latlng, không thể tạo GPX
+            if (!streams.latlng || !streams.latlng.data) {
+                return null;
+            }
+            
+            const latlngData = streams.latlng.data;
+            const timeData = streams.time ? streams.time.data : null;
+            const altitudeData = streams.altitude ? streams.altitude.data : null;
+            
+            // Thêm các điểm
+            for (let i = 0; i < latlngData.length; i++) {
+                const lat = latlngData[i][0];
+                const lon = latlngData[i][1];
+                
+                gpx += `
+      <trkpt lat="${lat}" lon="${lon}">`;
+                
+                // Thêm độ cao nếu có
+                if (altitudeData && i < altitudeData.length) {
+                    gpx += `
+        <ele>${altitudeData[i]}</ele>`;
+                }
+                
+                // Thêm thời gian nếu có
+                if (timeData && i < timeData.length) {
+                    const pointTime = new Date(startTime.getTime() + (timeData[i] * 1000));
+                    gpx += `
+        <time>${pointTime.toISOString()}</time>`;
+                }
+                
+                gpx += `
+      </trkpt>`;
+            }
+            
+            // Kết thúc tệp GPX
+            gpx += `
+    </trkseg>
+  </trk>
+</gpx>`;
+            
+            return gpx;
+        }
+        
+        // Hàm tải tệp
+        function downloadFile(content, fileName, contentType) {
+            const a = document.createElement('a');
+            const file = new Blob([content], { type: contentType });
+            a.href = URL.createObjectURL(file);
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+        
+        // Hiển thị thông báo trạng thái
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status ${type}`;
+            statusMessage.classList.remove('hidden');
+            
+            // Tự động ẩn sau 5 giây
+            setTimeout(() => {
+                statusMessage.classList.add('hidden');
+            }, 5000);
+        }
+        
+        // Định dạng thời gian từ giây sang HH:MM:SS
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            let result = '';
+            if (hours > 0) {
+                result += `${hours}h `;
+            }
+            if (minutes > 0 || hours > 0) {
+                result += `${minutes}m `;
+            }
+            result += `${secs}s`;
+            
+            return result;
+        }
+    </script>
+</body>
+</html>
