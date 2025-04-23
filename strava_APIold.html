@@ -397,7 +397,7 @@
             showStatus('Đang tải danh sách hoạt động...', 'success');
             
             // Lấy nhiều hoạt động hơn để có dữ liệu cho calendar chart
-            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=300', {
+            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=50', {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
                 }
