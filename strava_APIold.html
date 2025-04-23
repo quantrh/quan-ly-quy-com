@@ -908,15 +908,51 @@ function renderCalendarChart(weeksToShow) {
     
     console.log("Số lượng dữ liệu sau khi lọc:", filteredData.length);
     
+    // THAY ĐỔI TRẬT TỰ NGÀY TRONG TUẦN - ĐƯA THỨ 7 VÀ CHỦ NHẬT SANG TRÁI
+    // Tạo mảng thứ tự ngày với thứ 7 và chủ nhật ở bên trái
+    const daysOfWeekNames = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const daysOfWeekDisplay = ['Thứ 7', 'CN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
+    
+    // Tạo mảng tuần hiển thị
+    const weeks = [];
+    for (let i = minWeek; i <= maxWeek; i++) {
+        weeks.push(i);
+    }
+    
+    // Xây dựng dữ liệu lưới mới với vị trí đã điều chỉnh
+    const gridData = [];
+    
+    filteredData.forEach(d => {
+        // Ánh xạ day_of_week sang vị trí mới trong mảng daysOfWeekNames
+        // day_of_week: 1=Mon, 2=Tue, ..., 6=Sat, 7=Sun
+        let newDayIndex;
+        if (d.day_of_week === 6) { // Thứ 7
+            newDayIndex = 0;
+        } else if (d.day_of_week === 7) { // Chủ nhật
+            newDayIndex = 1;
+        } else { // Các ngày còn lại (1-5) dịch sang phải 2 vị trí
+            newDayIndex = d.day_of_week + 1;
+        }
+        
+        gridData.push({
+            x: daysOfWeekNames[newDayIndex],
+            y: d.week,
+            distance: d.distance,
+            pace: d.pace,
+            date: d.date,
+            activities: d.activities
+        });
+    });
+    
     // Tạo dữ liệu cho biểu đồ
     const plotData = [{
-        x: filteredData.map(d => d.day_name),
-        y: filteredData.map(d => d.week),
+        x: gridData.map(d => d.x),
+        y: gridData.map(d => d.y),
         mode: 'markers',
         marker: {
-            size: filteredData.map(d => Math.sqrt(d.distance) * 10), // Kích thước bong bóng tỉ lệ với căn bậc hai của khoảng cách
-            color: filteredData.map(d => d.distance), // Màu dựa trên khoảng cách
-            colorscale: 'Viridis', // Bảng màu (có thể thay đổi: 'Viridis', 'Jet', 'Hot', 'Blues', v.v.)
+            size: gridData.map(d => Math.sqrt(d.distance) * 10), // Kích thước bong bóng
+            color: gridData.map(d => d.distance), // Màu dựa trên khoảng cách
+            colorscale: 'Viridis', // Bảng màu
             colorbar: {
                 title: 'Quãng đường (km)',
                 thickness: 20
@@ -927,7 +963,7 @@ function renderCalendarChart(weeksToShow) {
                 width: 1
             }
         },
-        text: filteredData.map(d => 
+        text: gridData.map(d => 
             `Ngày: ${d.date}<br>` +
             `Quãng đường: ${d.distance} km<br>` +
             `Pace: ${d.pace} min/km`
@@ -941,9 +977,11 @@ function renderCalendarChart(weeksToShow) {
         title: `Biểu đồ hoạt động chạy bộ (${weeksToShow} tuần gần nhất)`,
         xaxis: {
             title: 'Thứ trong tuần',
-            tickvals: ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-            ticktext: ['Thứ 7', 'CN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'],
-            showgrid: true
+            tickvals: daysOfWeekNames,
+            ticktext: daysOfWeekDisplay,
+            // Đảm bảo thứ tự ngày theo thứ tự mới (Thứ 7, CN ở đầu)
+            categoryorder: 'array',
+            categoryarray: daysOfWeekNames
         },
         yaxis: {
             title: 'Tuần',
@@ -976,7 +1014,7 @@ function renderCalendarChart(weeksToShow) {
         if (data.points.length > 0) {
             const pt = data.points[0];
             const index = pt.pointIndex;
-            const dayData = filteredData[index];
+            const dayData = gridData[index];
             
             if (dayData.activities.length > 0) {
                 // Hiển thị chi tiết hoạt động trong dialog hoặc trong một phần nào đó
