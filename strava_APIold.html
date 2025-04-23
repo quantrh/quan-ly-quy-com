@@ -7,7 +7,7 @@
     <!-- Thêm thư viện Leaflet -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <!-- Thêm thư viện D3.js cho biểu đồ -->
+    <!-- Thêm thư viện d3.js cho đồ thị -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <style>
         body {
@@ -151,70 +151,118 @@
             display: block;
         }
         
-        /* Thêm kiểu cho biểu đồ nhiệt */
-        #yearlyStatSection {
-            margin-top: 30px;
-        }
-
-        #heatmap {
-            overflow-x: auto;
+        /* Thêm style cho đồ thị heat map */
+        #yearHeatMap {
             margin-top: 20px;
+            overflow-x: auto;
         }
-
-        .day-circle {
-            stroke: #fff;
-            stroke-width: 1px;
+        
+        .heatmap-container {
+            font-family: Arial, sans-serif;
+            margin: 20px 0;
         }
-
-        .heatmap-legend {
+        
+        .heatmap-title {
+            text-align: center;
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: auto repeat(52, minmax(20px, 1fr));
+            gap: 2px;
+        }
+        
+        .heatmap-label {
+            text-align: right;
+            padding-right: 10px;
+            font-size: 12px;
+            align-self: center;
+        }
+        
+        .heatmap-week-label {
+            text-align: center;
+            font-size: 10px;
+            padding: 5px 0;
+        }
+        
+        .heatmap-month-divider {
+            border-left: 1px solid #ddd;
+            position: relative;
+        }
+        
+        .heatmap-month-label {
+            position: absolute;
+            top: -20px;
+            width: 30px;
+            text-align: center;
+            font-size: 10px;
+            left: -15px;
+        }
+        
+        .heatmap-cell {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-top: 15px;
+            font-size: 9px;
+            color: white;
+            text-shadow: 0px 0px 2px rgba(0, 0, 0, 0.7);
         }
-
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
         .legend-item {
             display: flex;
             align-items: center;
-            margin-right: 15px;
+            margin: 0 10px;
         }
-
+        
         .legend-color {
-            width: 16px;
-            height: 16px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             margin-right: 5px;
         }
         
-        .heatmap-container {
+        .heatmap-stats {
             margin-top: 20px;
-            padding: 10px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
         }
-
-        .heatmap-header {
+        
+        .heatmap-summary {
             display: flex;
+            flex-wrap: wrap;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
         }
-
-        .heatmap-title {
-            font-size: 18px;
+        
+        .heatmap-summary-item {
+            flex: 1 0 25%;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .heatmap-summary-value {
+            font-size: 24px;
             font-weight: bold;
             color: #FC4C02;
         }
-
-        .heatmap-controls {
-            display: flex;
-            gap: 10px;
-        }
-
-        .week-labels, .day-labels {
+        
+        .heatmap-summary-label {
             font-size: 12px;
-            text-anchor: middle;
+            color: #666;
         }
     </style>
 </head>
@@ -234,40 +282,24 @@
         <div id="activitiesSection" class="hidden">
             <p>Bước 2: Lấy danh sách hoạt động gần đây của bạn.</p>
             <button id="getActivitiesBtn" class="btn">Lấy danh sách hoạt động</button>
+            <button id="getYearlyStatsBtn" class="btn">Thống kê 52 tuần</button>
             
             <div id="activityList"></div>
-
-            <!-- Thêm section cho thống kê năm -->
-            <div id="yearlyStatSection" class="hidden">
-                <h3>Thống kê luyện tập trong năm</h3>
-                <div class="heatmap-container">
-                    <div class="heatmap-header">
-                        <div class="heatmap-title">Đồ thị nhiệt chạy bộ trong năm</div>
-                        <div class="heatmap-controls">
-                            <select id="yearSelect" class="btn" style="padding: 5px 10px;"></select>
-                        </div>
-                    </div>
-                    <div id="heatmap"></div>
-                    <div class="heatmap-legend">
-                        <div class="legend-item">
-                            <div class="legend-color" style="background-color: #e6f7ff;"></div>
-                            <span>0-5km</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background-color: #91d5ff;"></div>
-                            <span>5-10km</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background-color: #1890ff;"></div>
-                            <span>10-15km</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background-color: #0050b3;"></div>
-                            <span>>15km</span>
-                        </div>
-                    </div>
+        </div>
+        
+        <div id="yearStatsSection" class="hidden">
+            <h3>Thống kê luyện tập 52 tuần gần nhất</h3>
+            
+            <div id="yearHeatMap"></div>
+            
+            <div class="heatmap-stats">
+                <h4>Tổng kết</h4>
+                <div class="heatmap-summary" id="heatmapSummary">
+                    <!-- Sẽ được điền bởi JavaScript -->
                 </div>
             </div>
+            
+            <button id="backToListFromStatsBtn" class="btn" style="margin-top: 20px;">Quay lại danh sách</button>
         </div>
         
         <div id="activityDetailSection" class="hidden">
@@ -305,24 +337,25 @@
         // Các phần tử DOM
         const authorizeBtn = document.getElementById('authorizeBtn');
         const getActivitiesBtn = document.getElementById('getActivitiesBtn');
+        const getYearlyStatsBtn = document.getElementById('getYearlyStatsBtn');
         const activityList = document.getElementById('activityList');
         const authSection = document.getElementById('authSection');
         const activitiesSection = document.getElementById('activitiesSection');
+        const yearStatsSection = document.getElementById('yearStatsSection');
         const activityDetailSection = document.getElementById('activityDetailSection');
         const activityDetailContainer = document.getElementById('activityDetailContainer');
         const activityStats = document.getElementById('activityStats');
         const activityRawData = document.getElementById('activityRawData');
         const backToListBtn = document.getElementById('backToListBtn');
+        const backToListFromStatsBtn = document.getElementById('backToListFromStatsBtn');
+        const yearHeatMap = document.getElementById('yearHeatMap');
         const statusMessage = document.getElementById('statusMessage');
-        const yearlyStatSection = document.getElementById('yearlyStatSection');
-        const yearSelect = document.getElementById('yearSelect');
         
         // Biến lưu trữ
         let accessToken = null;
         let map = null;
         let currentActivityData = null;
-        let allActivities = [];
-        let yearlyData = {};
+        let yearlyActivities = [];
         
         // Xử lý khi trang được tải
         document.addEventListener('DOMContentLoaded', function() {
@@ -358,10 +391,18 @@
                 activitiesSection.classList.remove('hidden');
             });
             
-            // Thiết lập sự kiện chọn năm
-            yearSelect.addEventListener('change', function() {
-                const selectedYear = this.value;
-                renderHeatmap(selectedYear);
+            backToListFromStatsBtn.addEventListener('click', function() {
+                yearStatsSection.classList.add('hidden');
+                activitiesSection.classList.remove('hidden');
+            });
+            
+            // Thiết lập sự kiện lấy thống kê năm
+            getYearlyStatsBtn.addEventListener('click', function() {
+                if (accessToken) {
+                    getYearlyActivities();
+                } else {
+                    showStatus('Vui lòng kết nối với Strava trước', 'error');
+                }
             });
         });
         
@@ -417,186 +458,20 @@
         function getActivities() {
             showStatus('Đang tải danh sách hoạt động...', 'success');
             
-            // Lấy hoạt động trong 1 năm, với số lượng lớn hơn
-            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=200', {
+            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=10', {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
                 }
             })
             .then(response => response.json())
             .then(activities => {
-                allActivities = activities;
                 showStatus('Đã tải danh sách hoạt động thành công!', 'success');
-                displayActivities(activities.slice(0, 10)); // Chỉ hiển thị 10 hoạt động đầu tiên
-                
-                // Xử lý dữ liệu cho biểu đồ nhiệt
-                processYearlyData(activities);
-                yearlyStatSection.classList.remove('hidden');
+                displayActivities(activities);
             })
             .catch(error => {
                 showStatus('Lỗi khi tải hoạt động: ' + error.message, 'error');
                 console.error('Error fetching activities:', error);
             });
-        }
-        
-        // Xử lý dữ liệu cho biểu đồ nhiệt
-        function processYearlyData(activities) {
-            // Nhóm hoạt động theo năm
-            yearlyData = {};
-            
-            activities.forEach(activity => {
-                // Chỉ xử lý hoạt động chạy bộ
-                if (activity.type === 'Run') {
-                    const date = new Date(activity.start_date);
-                    const year = date.getFullYear();
-                    const week = getWeekNumber(date);
-                    const day = date.getDay() || 7; // Đổi 0 (Chủ Nhật) thành 7
-                    const distance = activity.distance / 1000; // Đổi từ m sang km
-                    
-                    if (!yearlyData[year]) {
-                        yearlyData[year] = {};
-                    }
-                    
-                    if (!yearlyData[year][week]) {
-                        yearlyData[year][week] = {};
-                    }
-                    
-                    // Nếu có nhiều hoạt động trong cùng một ngày, cộng dồn khoảng cách
-                    if (yearlyData[year][week][day]) {
-                        yearlyData[year][week][day].distance += distance;
-                    } else {
-                        yearlyData[year][week][day] = {
-                            distance: distance,
-                            date: date
-                        };
-                    }
-                }
-            });
-            
-            // Điền các tùy chọn năm vào dropdown
-            yearSelect.innerHTML = '';
-            const years = Object.keys(yearlyData).sort((a, b) => b - a); // Sắp xếp năm từ mới đến cũ
-            
-            if (years.length === 0) {
-                // Nếu không có dữ liệu, thêm năm hiện tại
-                const currentYear = new Date().getFullYear();
-                yearSelect.innerHTML = `<option value="${currentYear}">${currentYear}</option>`;
-            } else {
-                years.forEach(year => {
-                    yearSelect.innerHTML += `<option value="${year}">${year}</option>`;
-                });
-                
-                // Render biểu đồ nhiệt cho năm đầu tiên
-                renderHeatmap(years[0]);
-            }
-        }
-        
-        // Lấy số tuần trong năm
-        function getWeekNumber(date) {
-            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-            const dayNum = d.getUTCDay() || 7;
-            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-        }
-        
-        // Render biểu đồ nhiệt
-        function renderHeatmap(year) {
-            const heatmapContainer = document.getElementById('heatmap');
-            heatmapContainer.innerHTML = '';
-            
-            const yearData = yearlyData[year] || {};
-            
-            // Cài đặt kích thước và margin
-            const cellSize = 40;
-            const margin = { top: 40, right: 30, bottom: 30, left: 50 };
-            const width = cellSize * 8 + margin.left + margin.right; // 7 ngày + margin cho nhãn
-            const height = cellSize * 53 + margin.top + margin.bottom; // 52 tuần + 1 cho nhãn
-            
-            // Tạo SVG container
-            const svg = d3.select('#heatmap')
-                .append('svg')
-                .attr('width', width)
-                .attr('height', height);
-            
-            // Tạo skala màu
-            const colorScale = d3.scaleThreshold()
-                .domain([5, 10, 15]) // Ngưỡng km
-                .range(['#e6f7ff', '#91d5ff', '#1890ff', '#0050b3']);
-            
-            // Tạo skala kích thước
-            const sizeScale = d3.scaleLinear()
-                .domain([0, 30]) // Giả sử tối đa 30km
-                .range([5, cellSize/2 - 2]);
-            
-            // Thêm nhãn ngày trong tuần
-            const daysOfWeek = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'];
-            svg.selectAll('.day-label')
-                .data(daysOfWeek)
-                .enter()
-                .append('text')
-                .attr('class', 'day-labels')
-                .attr('x', (d, i) => margin.left + cellSize * (i + 0.5))
-                .attr('y', margin.top / 2)
-                .text(d => d);
-            
-            // Dữ liệu cho biểu đồ
-            const heatmapData = [];
-            
-            // Điền dữ liệu
-            for (let week = 1; week <= 52; week++) {
-                for (let day = 1; day <= 7; day++) {
-                    const dayData = yearData[week] && yearData[week][day];
-                    heatmapData.push({
-                        week: week,
-                        day: day,
-                        distance: dayData ? dayData.distance.toFixed(2) : 0,
-                        date: dayData ? dayData.date : null
-                    });
-                }
-            }
-            
-            // Thêm nhãn tuần
-            svg.selectAll('.week-label')
-                .data([...Array(52).keys()].map(i => i + 1))
-                .enter()
-                .append('text')
-                .attr('class', 'week-labels')
-                .attr('x', margin.left / 2)
-                .attr('y', (d) => margin.top + cellSize * (d - 0.5))
-                .text(d => d);
-            
-            // Thêm các ô cho mỗi ngày
-            const days = svg.selectAll('.day')
-                .data(heatmapData)
-                .enter()
-                .append('g')
-                .attr('class', 'day')
-                .attr('transform', d => `translate(${margin.left + (d.day - 1) * cellSize}, ${margin.top + (d.week - 1) * cellSize})`);
-            
-            // Thêm các hình tròn cho các ngày có hoạt động
-            days.filter(d => d.distance > 0)
-                .append('circle')
-                .attr('class', 'day-circle')
-                .attr('cx', cellSize / 2)
-                .attr('cy', cellSize / 2)
-                .attr('r', d => sizeScale(d.distance))
-                .attr('fill', d => colorScale(d.distance))
-                .append('title')  // Tooltip khi hover
-                .text(d => {
-                    const dateStr = d.date ? d.date.toLocaleDateString('vi-VN') : '';
-                    return `${dateStr}: ${d.distance} km`;
-                });
-            
-            // Thêm text hiển thị số km
-            days.filter(d => d.distance > 0)
-                .append('text')
-                .attr('x', cellSize / 2)
-                .attr('y', cellSize / 2 + 4) // Điều chỉnh để căn giữa text
-                .attr('text-anchor', 'middle')
-                .attr('font-size', '10px')
-                .attr('fill', d => d.distance > 10 ? 'white' : 'black')
-                .text(d => d.distance);
         }
         
         // Hiển thị danh sách hoạt động
@@ -657,58 +532,208 @@
             });
         }
         
-        // Xem bản đồ hoạt động
-        function viewActivityMap(activityId) {
-            showStatus('Đang tải dữ liệu hoạt động...', 'success');
+        // Lấy hoạt động của cả năm (52 tuần)
+        function getYearlyActivities() {
+            showStatus('Đang tải dữ liệu hoạt động 52 tuần...', 'success');
             
-            // Ẩn danh sách hoạt động và hiển thị phần chi tiết
-            activitiesSection.classList.add('hidden');
-            activityDetailSection.classList.remove('hidden');
+            const now = new Date();
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(now.getFullYear() - 1);
             
-            // Đặt tab bản đồ là tab hoạt động
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelector('.tab[data-tab="map"]').classList.add('active');
-            document.getElementById('mapTab').classList.add('active');
+            // Chuyển đổi sang timestamp (seconds) cho Strava API
+            const after = Math.floor(oneYearAgo.getTime() / 1000);
             
-            // Tải chi tiết hoạt động
-            fetch(`https://www.strava.com/api/v3/activities/${activityId}?include_all_efforts=true`, {
+            // Lấy tất cả hoạt động trong 1 năm qua, tối đa 200 hoạt động
+            fetch(`https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=200`, {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
                 }
             })
             .then(response => response.json())
-            .then(activityDetails => {
-                currentActivityData = activityDetails;
+            .then(activities => {
+                // Lọc chỉ các hoạt động chạy bộ
+                const runActivities = activities.filter(activity => 
+                    activity.type === 'Run' || 
+                    activity.type === 'TrailRun' || 
+                    activity.type === 'VirtualRun'
+                );
                 
-                // Hiển thị thông tin cơ bản về hoạt động
-                activityDetailContainer.innerHTML = `
-                    <h3>${activityDetails.name}</h3>
-                    <div class="activity-info">
-                        <div class="activity-info-item">
-                            <strong>Ngày:</strong> ${new Date(activityDetails.start_date).toLocaleDateString('vi-VN')}
-                        </div>
-                        <div class="activity-info-item">
-                            <strong>Loại:</strong> ${activityDetails.type}
-                        </div>
-                        <div class="activity-info-item">
-                            <strong>Quãng đường:</strong> ${(activityDetails.distance / 1000).toFixed(2)} km
-                        </div>
-                    </div>
-                `;
+                yearlyActivities = runActivities;
                 
-                // Hiển thị thống kê chi tiết
-                activityStats.innerHTML = `
-                    <h4>Thống kê</h4>
-                    <div class="activity-info">
-                        <div class="activity-info-item">
-                            <strong>Thời gian di chuyển:</strong> ${formatDuration(activityDetails.moving_time)}
-                        </div>
-                        <div class="activity-info-item">
-                            <strong>Thời gian tổng:</strong> ${formatDuration(activityDetails.elapsed_time)}
-                        </div>
-                        <div class="activity-info-item">
-                            <strong>Tốc độ trung bình:</strong> ${(activityDetails.average_speed * 3.6).toFixed(2)} km/h
-                        </div>
-                        <div class="activity-info-item">
-                            <strong>
+                // Hiển thị biểu đồ heat map
+                renderHeatMap(yearlyActivities);
+                
+                // Hiển thị phần thống kê năm
+                activitiesSection.classList.add('hidden');
+                yearStatsSection.classList.remove('hidden');
+                
+                showStatus('Đã tải dữ liệu 52 tuần thành công!', 'success');
+            })
+            .catch(error => {
+                showStatus('Lỗi khi tải dữ liệu 52 tuần: ' + error.message, 'error');
+                console.error('Error fetching yearly activities:', error);
+            });
+        }
+        
+        // Tạo heat map cho hoạt động trong năm
+        function renderHeatMap(activities) {
+            // Tạo bố cục base cho heat map
+            yearHeatMap.innerHTML = '';
+            
+            const heatmapContainer = document.createElement('div');
+            heatmapContainer.className = 'heatmap-container';
+            
+            const heatmapTitle = document.createElement('div');
+            heatmapTitle.className = 'heatmap-title';
+            heatmapTitle.textContent = 'Heat Map Hoạt Động Chạy Bộ - 52 Tuần Gần Đây';
+            
+            const heatmapGrid = document.createElement('div');
+            heatmapGrid.className = 'heatmap-grid';
+            
+            // Tạo dữ liệu cho grid
+            // Lấy thời gian hiện tại
+            const today = new Date();
+            const weekdays = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'];
+            
+            // Tạo các nhãn hàng (ngày trong tuần)
+            heatmapGrid.innerHTML = '<div></div>'; // Ô trống ở góc trên bên trái
+            
+            // Tạo các nhãn tuần (52 tuần)
+            for (let week = 0; week < 52; week++) {
+                const weekLabel = document.createElement('div');
+                weekLabel.className = 'heatmap-week-label';
+                
+                // Chỉ hiển thị nhãn cho mỗi 4 tuần
+                if (week % 4 === 0) {
+                    weekLabel.textContent = week + 1;
+                }
+                
+                heatmapGrid.appendChild(weekLabel);
+            }
+            
+            // Chuẩn bị dữ liệu hoạt động theo ngày
+            const activityByDate = {};
+            activities.forEach(activity => {
+                const date = new Date(activity.start_date).toISOString().split('T')[0];
+                if (!activityByDate[date]) {
+                    activityByDate[date] = {
+                        distance: 0,
+                        count: 0
+                    };
+                }
+                activityByDate[date].distance += activity.distance / 1000; // Chuyển đổi sang km
+                activityByDate[date].count += 1;
+            });
+            
+            // Tìm giá trị distance lớn nhất cho thang màu
+            let maxDistance = 0;
+            Object.values(activityByDate).forEach(day => {
+                if (day.distance > maxDistance) {
+                    maxDistance = day.distance;
+                }
+            });
+            
+            // Tạo một bảng màu (từ xanh nhạt đến xanh đậm)
+            const colorScale = (value) => {
+                // Nếu không có giá trị, trả về màu trong suốt
+                if (value === 0) return 'transparent';
+                
+                // Tạo thang màu từ xanh nhạt đến xanh đậm
+                const intensity = Math.min(0.2 + (value / maxDistance) * 0.8, 1);
+                return `rgba(0, 122, 255, ${intensity})`;
+            };
+            
+            // Tạo các hàng cho mỗi ngày trong tuần
+            for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+                // Thêm nhãn ngày trong tuần
+                const dayLabel = document.createElement('div');
+                dayLabel.className = 'heatmap-label';
+                dayLabel.textContent = weekdays[dayIndex];
+                heatmapGrid.appendChild(dayLabel);
+                
+                // Tạo cells cho mỗi tuần
+                for (let week = 0; week < 52; week++) {
+                    // Tính ngày dựa trên tuần hiện tại và ngày trong tuần
+                    const cellDate = new Date(today);
+                    cellDate.setDate(today.getDate() - ((today.getDay() || 7) - 1) - (51 - week) * 7 - (6 - dayIndex));
+                    
+                    const dateStr = cellDate.toISOString().split('T')[0];
+                    const dayData = activityByDate[dateStr] || { distance: 0, count: 0 };
+                    
+                    const cell = document.createElement('div');
+                    cell.className = 'heatmap-cell';
+                    
+                    // Đặt kích thước dựa trên khoảng cách chạy
+                    const distance = dayData.distance;
+                    
+                    if (distance > 0) {
+                        // Tính kích thước dựa trên khoảng cách (tối thiểu 8px, tối đa 20px)
+                        const size = 8 + Math.min(distance / maxDistance * 12, 12);
+                        cell.style.width = `${size}px`;
+                        cell.style.height = `${size}px`;
+                        cell.style.backgroundColor = colorScale(distance);
+                        
+                        // Hiển thị số km trong cell
+                        cell.textContent = distance.toFixed(1);
+                        
+                        // Thêm thông tin chi tiết khi hover
+                        const formattedDate = cellDate.toLocaleDateString('vi-VN');
+                        cell.title = `${formattedDate}: ${distance.toFixed(2)} km (${dayData.count} hoạt động)`;
+                    }
+                    
+                    heatmapGrid.appendChild(cell);
+                }
+            }
+            
+            // Tạo legend
+            const legend = document.createElement('div');
+            legend.className = 'legend';
+            
+            // Tạo các mức cho legend
+            const legendLevels = [1, 3, 5, 10, 15];
+            legendLevels.forEach(level => {
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item';
+                
+                const legendColor = document.createElement('div');
+                legendColor.className = 'legend-color';
+                legendColor.style.backgroundColor = colorScale(level / legendLevels[legendLevels.length - 1] * maxDistance);
+                
+                const legendLabel = document.createElement('span');
+                legendLabel.textContent = `${level} km`;
+                
+                legendItem.appendChild(legendColor);
+                legendItem.appendChild(legendLabel);
+                legend.appendChild(legendItem);
+            });
+            
+            // Thêm tất cả vào container
+            heatmapContainer.appendChild(heatmapTitle);
+            heatmapContainer.appendChild(heatmapGrid);
+            heatmapContainer.appendChild(legend);
+            yearHeatMap.appendChild(heatmapContainer);
+            
+            // Tạo tổng kết
+            createHeatmapSummary(activities);
+        }
+        
+        // Tạo tổng kết cho heat map
+        function createHeatmapSummary(activities) {
+            const heatmapSummary = document.getElementById('heatmapSummary');
+            heatmapSummary.innerHTML = '';
+            
+            // Tính toán tổng kết
+            const totalRuns = activities.length;
+            let totalDistance = 0;
+            let totalElevation = 0;
+            let totalTime = 0;
+            
+            activities.forEach(activity => {
+                totalDistance += activity.distance / 1000; // km
+                totalElevation += activity.total_elevation_gain || 0; // m
+                totalTime += activity.moving_time || 0; // seconds
+            });
+            
+            // Tạo mảng các ngày hoạt động
+            const activeDays = new Set();
+            activities.forEach(activity
