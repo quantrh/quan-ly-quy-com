@@ -688,4 +688,343 @@ debugBtn.addEventListener('click', function() {
             .then(streams => {
                 const gpxContent = generateGpx(streams, activityId);
                 if (gpxContent) {
-                    downloadFile(gpxContent, `strava-activity-${activityId}.gpx`, 'application
+                    downloadFile(gpxContent, `strava-activity-${activityId}.gpx`, 'application/gpx+xml');
+                    showStatus('Đã tải dữ liệu GPX thành công!', 'success');
+                } else {
+                    showStatus('Không thể tạo tệp GPX: Không có dữ liệu GPS', 'error');
+                }
+            })
+            .catch(error => {
+                showStatus('Lỗi khi tải dữ liệu GPX: ' + error.message, 'error');
+                console.error('Error fetching GPX data:', error);
+            });
+        }
+        
+        // Tạo tệp GPX từ dữ liệu streams
+        function generateGpx(streams, activityId) {
+            // Nếu không có dữ liệu latlng, không thể tạo GPX
+            if (!streams.latlng || !streams.latlng.data || streams.latlng.data.length === 0) {
+                return null;
+            }
+            
+            // Lấy ngày bắt đầu (sử dụng thời gian hiện tại nếu không có)
+            const startTime = new Date();
+            
+            // Điều chỉnh thời gian GPX sang múi giờ Việt Nam
+            const vietnamStartTime = convertToVietnamTime(startTime.toISOString());
+            
+            // Tạo header GPX
+            let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx creator="Strava GPS Data Extractor" version="1.1" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>Activity ${activityId}</name>
+    <time>${vietnamStartTime.toISOString()}</time>
+  </metadata>
+  <trk>
+    <name>Activity ${activityId}</name>
+    <trkseg>`;
+            
+            const latlngData = streams.latlng.data;
+            const timeData = streams.time ? streams.time.data : null;
+            const altitudeData = streams.altitude ? streams.altitude.data : null;
+            
+            // Thêm các điểm
+            for (let i = 0; i < latlngData.length; i++) {
+                const lat = latlngData[i][0];
+                const lon = latlngData[i][1];
+                
+                gpx += `
+      <trkpt lat="${lat}" lon="${lon}">`;
+                
+                // Thêm độ cao nếu có
+                if (altitudeData && i < altitudeData.length) {
+                    gpx += `
+        <ele>${altitudeData[i]}</ele>`;
+                }
+                
+                // Thêm thời gian nếu có
+                if (timeData && i < timeData.length) {
+                    // Điều chỉnh thời gian sang múi giờ Việt Nam
+                    const pointTime = new Date(vietnamStartTime.getTime() + (timeData[i] * 1000));
+                    gpx += `
+        <time>${pointTime.toISOString()}</time>`;
+                }
+                
+                gpx += `
+      </trkpt>`;
+            }
+            
+            // Kết thúc tệp GPX
+            gpx += `
+    </trkseg>
+  </trk>
+</gpx>`;
+            
+            return gpx;
+        }
+        
+        // Hàm tải tệp
+        function downloadFile(content, fileName, contentType) {
+            const a = document.createElement('a');
+            const file = new Blob([content], { type: contentType });
+            a.href = URL.createObjectURL(file);
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+        
+        // Hiển thị thông báo trạng thái
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status ${type}`;
+            statusMessage.classList.remove('hidden');
+            
+            // Tự động ẩn sau 5 giây
+            setTimeout(() => {
+                statusMessage.classList.add('hidden');
+            }, 5000);
+        }
+        
+        // Định dạng thời gian từ giây sang HH:MM:SS
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            let result = '';
+            if (hours > 0) {
+                result += `${hours}h `;
+            }
+            if (minutes > 0 || hours > 0) {
+                result += `${minutes}m `;
+            }
+            result += `${secs}s`;
+            
+            return result;
+        }
+        
+        // Xử lý dữ liệu hoạt động để tạo calendar bubble chart
+        function processActivitiesData() {
+            // Lọc để chỉ lấy các hoạt động chạy bộ (Run)
+            const runActivities = activitiesData.filter(activity => activity.type === 'Run');
+            
+            // Sắp xếp hoạt động theo ngày, từ cũ đến mới
+            runActivities.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+            
+            // Tạo bảng dữ liệu theo ngày
+            const dailyData = {};
+            
+            runActivities.forEach(activity => {
+                // Chuyển đổi ngày giờ sang múi giờ Việt Nam
+                const vietnamDate = convertToVietnamTime(activity.start_date);
+                const date = vietnamDate.toISOString().slice(0, 10); // Format: YYYY-MM-DD
+                
+                const distanceKm = activity.distance / 1000; // Convert từ m sang km
+                const paceMinPerKm = activity.average_speed > 0 
+                    ? (16.6666 / activity.average_speed).toFixed(2) // Chuyển m/s thành phút/km
+                    : 0;
+                
+                if (!dailyData[date]) {
+                    dailyData[date] = {
+                        totalDistance: 0,
+                        activities: []
+                    };
+                }
+                
+                dailyData[date].totalDistance += distanceKm;
+                dailyData[date].activities.push({
+                    id: activity.id,
+                    name: activity.name,
+                    distance: distanceKm,
+                    pace: paceMinPerKm
+                });
+            });
+            
+            // Chuyển đổi dữ liệu thành định dạng cho biểu đồ
+            calendarData = [];
+            
+            for (const date in dailyData) {
+                // Tạo đối tượng Date từ chuỗi ngày
+                const dateObj = new Date(date);
+                
+                // Sử dụng phương pháp tính tuần ISO
+                const isoWeek = getISOWeek(dateObj);
+                
+                // Sử dụng phương pháp tính ngày trong tuần ISO (1 = Thứ 2, 7 = Chủ Nhật)
+                const dayOfWeek = getISODayOfWeek(dateObj);
+                
+                // Tên các thứ trong tuần
+                const daysOfWeekNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                const dayName = daysOfWeekNames[dayOfWeek - 1];
+                
+                // Tính pace dưới dạng chuỗi "mm:ss"
+                let avgPace = 0;
+                dailyData[date].activities.forEach(act => {
+                    avgPace += parseFloat(act.pace);
+                });
+                avgPace = avgPace / dailyData[date].activities.length;
+                
+                const paceMinutes = Math.floor(avgPace);
+                const paceSeconds = Math.round((avgPace - paceMinutes) * 60);
+                const paceFormatted = `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`;
+                
+                calendarData.push({
+                    date: date,
+                    week: isoWeek, // Sử dụng tuần ISO
+                    day_of_week: dayOfWeek, // Sử dụng ngày ISO trong tuần
+                    day_name: dayName,
+                    distance: parseFloat(dailyData[date].totalDistance.toFixed(2)),
+                    pace: paceFormatted,
+                    activities: dailyData[date].activities
+                });
+            }
+            
+            // Sắp xếp lại theo tuần và thứ
+            calendarData.sort((a, b) => {
+                if (a.week !== b.week) return a.week - b.week;
+                return a.day_of_week - b.day_of_week;
+            });
+        }
+
+        // Thêm hai hàm mới để tính tuần theo chuẩn ISO
+        // Phương pháp tính tuần chuẩn ISO
+        function getISOWeek(date) {
+            // Sao chép ngày để không ảnh hưởng đến ngày gốc
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            // Đặt ngày về thứ 5 của tuần hiện tại
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+            // Lấy ngày đầu tiên của năm
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            // Tính số ngày kể từ ngày đầu tiên của năm
+            const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+            return weekNo;
+        }
+
+        // Hàm tính ngày của tuần theo ISO (1 = Thứ 2, 7 = Chủ Nhật)
+        function getISODayOfWeek(date) {
+            return date.getDay() || 7; // Nếu getDay() trả về 0 (Chủ Nhật), đổi thành 7
+        }
+        
+        // Hàm hiển thị biểu đồ calendar bubble chart
+        function renderCalendarChart(weeksToShow) {
+            if (calendarData.length === 0) {
+                document.getElementById('calendarChart').innerHTML = 
+                    '<div class="error">Không có dữ liệu hoạt động để hiển thị.</div>';
+                return;
+            }
+            
+            // Tìm tuần gần đây nhất trong dữ liệu
+            const latestDate = new Date(Math.max(...calendarData.map(d => new Date(d.date))));
+            console.log("Ngày gần nhất:", latestDate.toISOString().slice(0, 10));
+            
+            // Tính tuần hiện tại theo chuẩn ISO
+            const currentWeek = getISOWeek(latestDate);
+            console.log("Tuần ISO hiện tại:", currentWeek);
+            
+            // Tính khoảng tuần cần hiển thị
+            const minWeek = Math.max(1, currentWeek - weeksToShow + 1);
+            const maxWeek = currentWeek;
+            
+            console.log("Hiển thị từ tuần", minWeek, "đến tuần", maxWeek);
+            
+            // Lọc dữ liệu dựa trên khoảng tuần cần hiển thị
+            const filteredData = calendarData.filter(d => {
+                const recordDate = new Date(d.date);
+                const recordYear = recordDate.getFullYear();
+                const currentYear = latestDate.getFullYear();
+                
+                if (recordYear < currentYear) {
+                    // Kiểm tra xem tuần này có phải là tuần cuối của năm trước kéo sang năm nay không
+                    return false;
+                } else if (recordYear > currentYear) {
+                    return true;
+                } else {
+                    return d.week >= minWeek && d.week <= maxWeek;
+                }
+            });
+            
+            console.log("Số lượng dữ liệu sau khi lọc:", filteredData.length);
+            
+            // Tạo dữ liệu cho biểu đồ
+            const plotData = [{
+                x: filteredData.map(d => d.day_name),
+                y: filteredData.map(d => d.week),
+                mode: 'markers',
+                marker: {
+                    size: filteredData.map(d => Math.sqrt(d.distance) * 10), 
+                    color: filteredData.map(d => d.distance),
+                    colorscale: 'Viridis',
+                    colorbar: {
+                        title: 'Quãng đường (km)',
+                        thickness: 20
+                    },
+                    opacity: 0.8,
+                    line: {
+                        color: '#444',
+                        width: 1
+                    }
+                },
+                text: filteredData.map(d => 
+                    `Ngày: ${d.date}<br>` +
+                    `Quãng đường: ${d.distance} km<br>` +
+                    `Pace: ${d.pace} min/km`
+                ),
+                hoverinfo: 'text',
+                type: 'scatter'
+            }];
+            
+            // Cấu hình bố cục
+            const layout = {
+                title: `Biểu đồ hoạt động chạy bộ (${weeksToShow} tuần gần nhất)`,
+                xaxis: {
+                    title: 'Thứ trong tuần',
+                    tickvals: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    ticktext: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'],
+                    showgrid: true
+                },
+                yaxis: {
+                    title: 'Tuần',
+                    autorange: 'reversed', // Hiển thị tuần mới nhất ở trên cùng
+                    showgrid: true
+                },
+                hovermode: 'closest',
+                showlegend: false,
+                margin: {
+                    l: 50,
+                    r: 50,
+                    b: 50,
+                    t: 80,
+                    pad: 4
+                }
+            };
+            
+            // Cấu hình tùy chọn
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                modeBarButtonsToRemove: ['lasso2d', 'select2d']
+            };
+            
+            // Hiển thị biểu đồ
+            Plotly.newPlot('calendarChart', plotData, layout, config);
+            
+            // Thêm sự kiện click để hiển thị chi tiết hoạt động khi click vào bubble
+            document.getElementById('calendarChart').on('plotly_click', function(data) {
+                if (data.points.length > 0) {
+                    const pt = data.points[0];
+                    const index = pt.pointIndex;	
+                    const dayData = filteredData[index];
+                    
+                    if (dayData.activities.length > 0) {
+                        // Hiển thị chi tiết hoạt động trong dialog hoặc trong một phần nào đó
+                        alert(`Hoạt động ngày ${dayData.date}:\n` + 
+                              `Tổng quãng đường: ${dayData.distance} km\n` + 
+                              `Pace trung bình: ${dayData.pace} min/km\n\n` + 
+                              `${dayData.activities.length} hoạt động`);
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
