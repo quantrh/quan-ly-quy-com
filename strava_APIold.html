@@ -251,7 +251,7 @@
     <script>
         // Cấu hình ứng dụng Strava
         const clientId = '55949'; // Thay thế bằng Client ID của bạn từ Strava API
-        const redirectUri = "https://quantrh.github.io/quan-ly-quy-com/strava_APIold.html";
+        const redirectUri = "https://quantrh.github.io/quan-ly-quy-com/strava_API.html";
         
         // Các phần tử DOM
         const authorizeBtn = document.getElementById('authorizeBtn');
@@ -395,9 +395,9 @@
         // Lấy danh sách hoạt động
         function getActivities() {
             showStatus('Đang tải danh sách hoạt động...', 'success');
-           
+            
             // Lấy nhiều hoạt động hơn để có dữ liệu cho calendar chart
-            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=200`, {
+            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=200', {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
                 }
