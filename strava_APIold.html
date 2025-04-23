@@ -368,7 +368,7 @@
             });
         });
         
-        // Sự kiện nút kết nối với Strava
+         // Sự kiện nút kết nối với Strava
         authorizeBtn.addEventListener('click', function() {
             const scope = 'read,activity:read';
             const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
