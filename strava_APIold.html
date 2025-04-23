@@ -321,6 +321,55 @@
             
             // Thêm nút mới vào giao diện để hiển thị calendar chart
             const showChartBtn = document.createElement('button');
+
+const debugBtn = document.createElement('button');
+debugBtn.className = 'btn';
+debugBtn.style.backgroundColor = '#666';
+debugBtn.textContent = 'Debug dữ liệu hoạt động';
+debugBtn.addEventListener('click', function() {
+    if (activitiesData.length === 0) {
+        showStatus('Vui lòng tải danh sách hoạt động trước', 'error');
+        return;
+    }
+    
+    // Hiển thị thông tin về các loại hoạt động
+    const activityTypes = {};
+    activitiesData.forEach(activity => {
+        const type = activity.type;
+        if (!activityTypes[type]) {
+            activityTypes[type] = 0;
+        }
+        activityTypes[type]++;
+    });
+    
+    // Hiển thị thông báo với thống kê
+    let message = "Thống kê loại hoạt động:\n\n";
+    for (const type in activityTypes) {
+        message += `${type}: ${activityTypes[type]} hoạt động\n`;
+    }
+    
+    // Kiểm tra dữ liệu tháng 4/2025
+    const april2025 = activitiesData.filter(activity => 
+        activity.start_date.startsWith("2025-04")
+    );
+    
+    if (april2025.length > 0) {
+        message += "\n\nHoạt động tháng 4/2025:\n";
+        april2025.forEach(activity => {
+            message += `${activity.start_date.substr(0, 10)} - ${activity.name} (${activity.type})\n`;
+        });
+    } else {
+        message += "\n\nKhông tìm thấy hoạt động nào trong tháng 4/2025.";
+    }
+    
+    alert(message);
+});
+
+            // Thêm nút debug vào phần hoạt động (sau nút showChartBtn)
+activitiesSection.insertBefore(debugBtn, activityList);
+
+
+            
             showChartBtn.className = 'btn';
             showChartBtn.textContent = 'Xem biểu đồ chạy bộ';
             showChartBtn.addEventListener('click', function() {
