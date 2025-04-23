@@ -395,11 +395,9 @@
         // Lấy danh sách hoạt động
         function getActivities() {
             showStatus('Đang tải danh sách hoạt động...', 'success');
-            const before = Math.floor(new Date('2025-12-31').getTime() / 1000);
-            const after = Math.floor(new Date('2025-01-01').getTime() / 1000);
-
+           
             // Lấy nhiều hoạt động hơn để có dữ liệu cho calendar chart
-            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=200&before=${before}&after=${after}`, {
+            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=200`, {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
                 }
