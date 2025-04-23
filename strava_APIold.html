@@ -872,17 +872,9 @@ function renderCalendarChart(weeksToShow) {
     }
     
     // Tìm tuần gần đây nhất trong dữ liệu
-    // Chuyển đổi ngày sang múi giờ Việt Nam (GMT+7)
-    const allDates = calendarData.map(d => {
-        // Tạo đối tượng Date từ chuỗi ISO
-        const date = new Date(d.date);
-        // Điều chỉnh sang múi giờ Việt Nam
-        date.setHours(date.getHours() + 7);
-        return date;
-    });
-    
+    const allDates = calendarData.map(d => new Date(d.date));
     const latestDate = new Date(Math.max.apply(null, allDates));
-    console.log("Ngày gần nhất (Việt Nam):", latestDate.toISOString());
+    console.log("Ngày gần nhất:", latestDate);
     
     // Tính tuần hiện tại và khoảng tuần cần hiển thị
     const currentYear = latestDate.getFullYear();
@@ -896,49 +888,30 @@ function renderCalendarChart(weeksToShow) {
     
     console.log("Hiển thị từ tuần", minWeek, "đến tuần", maxWeek);
     
-    // Lọc và xử lý dữ liệu với múi giờ Việt Nam
-    const processedData = calendarData.map(d => {
-        // Tạo đối tượng Date từ chuỗi ISO và điều chỉnh sang múi giờ Việt Nam
-        const dateObj = new Date(d.date);
-        dateObj.setHours(dateObj.getHours() + 7);
-        
-        // Tính tuần trong năm theo múi giờ Việt Nam
-        const vnYear = dateObj.getFullYear();
-        const vnFirstDayOfYear = new Date(vnYear, 0, 1);
-        const vnPastDaysOfYear = (dateObj - vnFirstDayOfYear) / 86400000;
-        const vnWeek = Math.ceil((vnPastDaysOfYear + vnFirstDayOfYear.getDay() + 1) / 7);
-        
-        // Lấy thứ trong tuần (1-7, với 1 = thứ hai)
-        const vnDayOfWeek = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
-        
-        // Format lại ngày tháng theo múi giờ Việt Nam
-        const vnDateFormatted = dateObj.toISOString().split('T')[0];
-        
-        return {
-            ...d,
-            date: vnDateFormatted,
-            week: vnWeek,
-            day_of_week: vnDayOfWeek,
-            // Cập nhật tên ngày trong tuần
-            day_name: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][vnDayOfWeek - 1]
-        };
-    });
-    
     // Lọc dữ liệu dựa trên khoảng tuần cần hiển thị
-    const filteredData = processedData.filter(d => {
+    const filteredData = calendarData.filter(d => {
+        // Chỉ lấy dữ liệu của năm hiện tại để tránh xung đột số tuần giữa các năm
         const recordDate = new Date(d.date);
         const recordYear = recordDate.getFullYear();
         
         if (recordYear < currentYear) {
+            // Đối với các bản ghi của năm trước
             return false;
         } else if (recordYear > currentYear) {
+            // Đối với các bản ghi của năm sau (trường hợp hiếm)
             return true;
         } else {
+            // Đối với các bản ghi của năm hiện tại
             return d.week >= minWeek && d.week <= maxWeek;
         }
     });
     
     console.log("Số lượng dữ liệu sau khi lọc:", filteredData.length);
+    
+    // THAY ĐỔI TRẬT TỰ NGÀY TRONG TUẦN - ĐƯA THỨ 7 VÀ CHỦ NHẬT SANG TRÁI
+    // Tạo mảng thứ tự ngày với thứ 7 và chủ nhật ở bên trái
+    const daysOfWeekNames = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const daysOfWeekDisplay = ['Thứ 7', 'CN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
     
     // Tạo mảng tuần hiển thị
     const weeks = [];
@@ -946,16 +919,23 @@ function renderCalendarChart(weeksToShow) {
         weeks.push(i);
     }
     
-    // Xây dựng dữ liệu lưới mới
+    // Xây dựng dữ liệu lưới mới với vị trí đã điều chỉnh
     const gridData = [];
-    const daysOfWeekNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     
     filteredData.forEach(d => {
-        // Đảm bảo day_of_week đúng với chỉ số trong mảng daysOfWeekNames
-        const dayIndex = d.day_of_week === 7 ? 6 : d.day_of_week - 1;
+        // Ánh xạ day_of_week sang vị trí mới trong mảng daysOfWeekNames
+        // day_of_week: 1=Mon, 2=Tue, ..., 6=Sat, 7=Sun
+        let newDayIndex;
+        if (d.day_of_week === 6) { // Thứ 7
+            newDayIndex = 0;
+        } else if (d.day_of_week === 7) { // Chủ nhật
+            newDayIndex = 1;
+        } else { // Các ngày còn lại (1-5) dịch sang phải 2 vị trí
+            newDayIndex = d.day_of_week + 1;
+        }
         
         gridData.push({
-            x: daysOfWeekNames[dayIndex],
+            x: daysOfWeekNames[newDayIndex],
             y: d.week,
             distance: d.distance,
             pace: d.pace,
@@ -998,8 +978,8 @@ function renderCalendarChart(weeksToShow) {
         xaxis: {
             title: 'Thứ trong tuần',
             tickvals: daysOfWeekNames,
-            ticktext: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'],
-            // Đảm bảo thứ tự ngày luôn nhất quán
+            ticktext: daysOfWeekDisplay,
+            // Đảm bảo thứ tự ngày theo thứ tự mới (Thứ 7, CN ở đầu)
             categoryorder: 'array',
             categoryarray: daysOfWeekNames
         },
@@ -1038,7 +1018,7 @@ function renderCalendarChart(weeksToShow) {
             
             if (dayData.activities.length > 0) {
                 // Hiển thị chi tiết hoạt động trong dialog hoặc trong một phần nào đó
-                alert(`Hoạt động ngày ${dayData.date} (Giờ Việt Nam):\n` + 
+                alert(`Hoạt động ngày ${dayData.date}:\n` + 
                       `Tổng quãng đường: ${dayData.distance} km\n` + 
                       `Pace trung bình: ${dayData.pace} min/km\n\n` + 
                       `${dayData.activities.length} hoạt động`);
