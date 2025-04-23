@@ -7,8 +7,8 @@
     <!-- Thêm thư viện Leaflet -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <!-- Thêm D3.js để vẽ biểu đồ bubble chart -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <!-- Thêm thư viện Plotly.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.1/plotly.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -151,83 +151,33 @@
             display: block;
         }
         
-        /* Thêm kiểu cho biểu đồ bubble chart */
-        #bubbleChart {
-            width: 100%;
-            height: 650px;
+        /* Thêm CSS cho calendar chart */
+        #calendarChartSection {
             margin-top: 20px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
         
-        .chart-container {
+        #calendarChart {
+            height: 500px;
             width: 100%;
-            overflow: auto;
+            margin-top: 15px;
         }
         
-        .chart-tooltip {
-            position: absolute;
-            padding: 10px;
-            background-color: rgba(0, 0, 0, 0.8);
-            color: #fff;
+        .chart-controls {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .chart-controls label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        .chart-controls select {
+            padding: 8px;
             border-radius: 4px;
-            pointer-events: none;
+            border: 1px solid #ddd;
             font-size: 14px;
-            z-index: 1000;
-        }
-        
-        .legend {
-            margin-top: 10px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .legend-item {
-            display: flex;
-            align-items: center;
-            margin-right: 20px;
-        }
-        
-        .legend-color {
-            width: 15px;
-            height: 15px;
-            border-radius: 50%;
-            margin-right: 5px;
-        }
-        
-        .nav-button {
-            margin: 10px;
-        }
-        
-        .main-nav {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-        
-        /* Kiểu cho thanh màu (colorbar) */
-        .colorbar-container {
-            margin-top: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        
-        .colorbar {
-            width: 80%;
-            height: 20px;
-            margin-bottom: 5px;
-            border-radius: 3px;
-            background: linear-gradient(to right, #440154, #414487, #2a788e, #22a884, #7ad151, #fde725);
-        }
-        
-        .colorbar-labels {
-            display: flex;
-            justify-content: space-between;
-            width: 80%;
-            font-size: 12px;
         }
     </style>
 </head>
@@ -235,73 +185,73 @@
     <h1>Lấy dữ liệu GPS từ Strava</h1>
     
     <div class="container">
-        <div class="main-nav">
-            <button id="statsTabBtn" class="btn nav-button">Thống kê chạy bộ</button>
-            <button id="activitiesTabBtn" class="btn nav-button">Hoạt động Strava</button>
-        </div>
+        <p>Ứng dụng này cho phép bạn kết nối với tài khoản Strava của mình và tải về dữ liệu GPS từ các hoạt động của bạn.</p>
         
         <div id="statusMessage" class="status hidden"></div>
         
-        <div id="statsSection">
-            <h2>Thống kê chạy bộ theo ngày</h2>
-            <div id="bubbleChartContainer" class="chart-container">
-                <div id="bubbleChart"></div>
-                <div class="colorbar-container">
-                    <div class="colorbar"></div>
-                    <div class="colorbar-labels">
-                        <span>0 km</span>
-                        <span>Quãng đường (km)</span>
-                        <span id="maxDistanceLabel">20 km</span>
-                    </div>
-                </div>
-            </div>
+        <div id="authSection">
+            <p>Bước 1: Kết nối với tài khoản Strava của bạn.</p>
+            <button id="authorizeBtn" class="btn">Kết nối với Strava</button>
         </div>
         
-        <div id="stravaSection" class="hidden">
-            <div id="authSection">
-                <p>Bước 1: Kết nối với tài khoản Strava của bạn.</p>
-                <button id="authorizeBtn" class="btn">Kết nối với Strava</button>
+        <div id="activitiesSection" class="hidden">
+            <p>Bước 2: Lấy danh sách hoạt động gần đây của bạn.</p>
+            <button id="getActivitiesBtn" class="btn">Lấy danh sách hoạt động</button>
+            
+            <div id="activityList"></div>
+        </div>
+        
+        <div id="activityDetailSection" class="hidden">
+            <div id="activityDetailContainer"></div>
+            
+            <div class="tabs">
+                <div class="tab active" data-tab="map">Bản đồ</div>
+                <div class="tab" data-tab="details">Chi tiết</div>
+                <div class="tab" data-tab="raw">Dữ liệu</div>
             </div>
             
-            <div id="activitiesSection" class="hidden">
-                <p>Bước 2: Lấy danh sách hoạt động gần đây của bạn.</p>
-                <button id="getActivitiesBtn" class="btn">Lấy danh sách hoạt động</button>
-                
-                <div id="activityList"></div>
+            <div class="tab-content active" id="mapTab">
+                <div class="map-container">
+                    <div id="map"></div>
+                </div>
             </div>
             
-            <div id="activityDetailSection" class="hidden">
-                <div id="activityDetailContainer"></div>
-                
-                <div class="tabs">
-                    <div class="tab active" data-tab="map">Bản đồ</div>
-                    <div class="tab" data-tab="details">Chi tiết</div>
-                    <div class="tab" data-tab="raw">Dữ liệu</div>
-                </div>
-                
-                <div class="tab-content active" id="mapTab">
-                    <div class="map-container">
-                        <div id="map"></div>
-                    </div>
-                </div>
-                
-                <div class="tab-content" id="detailsTab">
-                    <div id="activityStats"></div>
-                </div>
-                
-                <div class="tab-content" id="rawTab">
-                    <div id="activityRawData"></div>
-                </div>
-                
-                <button id="backToListBtn" class="btn" style="margin-top: 20px;">Quay lại danh sách</button>
+            <div class="tab-content" id="detailsTab">
+                <div id="activityStats"></div>
             </div>
+            
+            <div class="tab-content" id="rawTab">
+                <div id="activityRawData"></div>
+            </div>
+            
+            <button id="backToListBtn" class="btn" style="margin-top: 20px;">Quay lại danh sách</button>
+        </div>
+        
+        <!-- Thêm phần calendar chart -->
+        <div id="calendarChartSection" class="hidden">
+            <h2>Biểu đồ Calendar Bubble Chart</h2>
+            <p>Trực quan hóa quãng đường chạy hàng ngày của bạn.</p>
+            
+            <div class="chart-controls">
+                <label for="weekSelector">Hiển thị:</label>
+                <select id="weekSelector">
+                    <option value="4">4 tuần gần nhất</option>
+                    <option value="12">12 tuần gần nhất</option>
+                    <option value="24">24 tuần gần nhất</option>
+                    <option value="52" selected>52 tuần gần nhất</option>
+                </select>
+            </div>
+            
+            <div id="calendarChart"></div>
+            
+            <button id="updateCalendarChartBtn" class="btn">Cập nhật biểu đồ</button>
         </div>
     </div>
     
     <script>
         // Cấu hình ứng dụng Strava
         const clientId = '55949'; // Thay thế bằng Client ID của bạn từ Strava API
-        const redirectUri = "https://quantrh.github.io/quan-ly-quy-com/strava_API.html";
+        const redirectUri = "https://quantrh.github.io/quan-ly-quy-com/strava_APIold.html";
         
         // Các phần tử DOM
         const authorizeBtn = document.getElementById('authorizeBtn');
@@ -315,17 +265,18 @@
         const activityRawData = document.getElementById('activityRawData');
         const backToListBtn = document.getElementById('backToListBtn');
         const statusMessage = document.getElementById('statusMessage');
-        const statsTabBtn = document.getElementById('statsTabBtn');
-        const activitiesTabBtn = document.getElementById('activitiesTabBtn');
-        const statsSection = document.getElementById('statsSection');
-        const stravaSection = document.getElementById('stravaSection');
+        const calendarChartSection = document.getElementById('calendarChartSection');
+        const weekSelector = document.getElementById('weekSelector');
+        const updateCalendarChartBtn = document.getElementById('updateCalendarChartBtn');
         
         // Biến lưu trữ
         let accessToken = null;
         let map = null;
         let currentActivityData = null;
-        let allActivities = [];
-        let maxDistance = 20; // Giá trị mặc định, sẽ được cập nhật
+        let activitiesData = []; // Lưu trữ dữ liệu hoạt động cho biểu đồ
+        
+        // Biến lưu trữ dữ liệu biểu đồ
+        let calendarData = [];
         
         // Xử lý khi trang được tải
         document.addEventListener('DOMContentLoaded', function() {
@@ -337,13 +288,6 @@
                 // Đã nhận được mã xác thực, tiến hành lấy access token
                 showStatus('Đang xác thực với Strava...', 'success');
                 exchangeCodeForToken(authorizationCode);
-                
-                // Hiển thị phần Strava khi có mã xác thực
-                statsSection.classList.add('hidden');
-                stravaSection.classList.remove('hidden');
-            } else {
-                // Hiển thị biểu đồ bubble chart mặc định
-                generateMockBubbleChart();
             }
             
             // Thiết lập sự kiện tab
@@ -368,21 +312,36 @@
                 activitiesSection.classList.remove('hidden');
             });
             
-            // Thiết lập sự kiện nút điều hướng chính
-            statsTabBtn.addEventListener('click', function() {
-                statsSection.classList.remove('hidden');
-                stravaSection.classList.add('hidden');
-                
-                // Nếu đã có dữ liệu Strava, vẽ biểu đồ từ dữ liệu thực
-                if (allActivities.length > 0) {
-                    generateBubbleChartFromActivities(allActivities);
-                }
+            // Thiết lập sự kiện nút cập nhật biểu đồ
+            updateCalendarChartBtn.addEventListener('click', function() {
+                const selectedWeeks = parseInt(weekSelector.value);
+                showStatus('Đang cập nhật biểu đồ...', 'success');
+                renderCalendarChart(selectedWeeks);
             });
             
-            activitiesTabBtn.addEventListener('click', function() {
-                statsSection.classList.add('hidden');
-                stravaSection.classList.remove('hidden');
+            // Thêm nút mới vào giao diện để hiển thị calendar chart
+            const showChartBtn = document.createElement('button');
+            showChartBtn.className = 'btn';
+            showChartBtn.textContent = 'Xem biểu đồ chạy bộ';
+            showChartBtn.addEventListener('click', function() {
+                if (activitiesData.length === 0) {
+                    showStatus('Vui lòng tải danh sách hoạt động trước', 'error');
+                    return;
+                }
+                
+                activitiesSection.classList.add('hidden');
+                calendarChartSection.classList.remove('hidden');
+                
+                const selectedWeeks = parseInt(weekSelector.value);
+                showStatus('Đang tạo biểu đồ...', 'success');
+                
+                // Xử lý dữ liệu và hiển thị biểu đồ
+                processActivitiesData();
+                renderCalendarChart(selectedWeeks);
             });
+            
+            // Thêm nút vào phần hoạt động
+            activitiesSection.insertBefore(showChartBtn, activityList);
         });
         
         // Sự kiện nút kết nối với Strava
@@ -426,9 +385,6 @@
                 // Hiển thị phần lấy hoạt động
                 authSection.classList.add('hidden');
                 activitiesSection.classList.remove('hidden');
-                
-                // Tự động lấy danh sách hoạt động
-                getActivities();
             })
             .catch(error => {
                 showStatus('Lỗi khi xác thực: ' + error.message, 'error');
@@ -440,7 +396,8 @@
         function getActivities() {
             showStatus('Đang tải danh sách hoạt động...', 'success');
             
-            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=100', {
+            // Lấy nhiều hoạt động hơn để có dữ liệu cho calendar chart
+            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=200', {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
                 }
@@ -448,11 +405,8 @@
             .then(response => response.json())
             .then(activities => {
                 showStatus('Đã tải danh sách hoạt động thành công!', 'success');
-                allActivities = activities;
-                displayActivities(activities);
-                
-                // Tạo biểu đồ bubble chart từ hoạt động
-                generateBubbleChartFromActivities(activities);
+                activitiesData = activities; // Lưu dữ liệu cho biểu đồ
+                displayActivities(activities.slice(0, 10)); // Hiển thị 10 hoạt động gần nhất
             })
             .catch(error => {
                 showStatus('Lỗi khi tải hoạt động: ' + error.message, 'error');
@@ -775,249 +729,182 @@
             return result;
         }
         
-        // CALENDAR BUBBLE CHART FUNCTIONS
-        
-        // Tạo dữ liệu mẫu cho biểu đồ khi không có dữ liệu từ Strava
-        function generateMockBubbleChart() {
-            const mockData = [];
+        // Xử lý dữ liệu hoạt động để tạo calendar bubble chart
+        function processActivitiesData() {
+            // Lọc để chỉ lấy các hoạt động chạy bộ (Run)
+            const runActivities = activitiesData.filter(activity => activity.type === 'Run');
             
-            // Tạo dữ liệu mẫu cho cả năm
-            for (let week = 1; week <= 52; week++) {
-                for (let day = 0; day < 7; day++) {
-                    // Tạo các giá trị ngẫu nhiên cho khoảng cách
-                    const distance = Math.random() > 0.7 ? Math.random() * 20 : 0;
-                    
-                    if (distance > 0) {
-                        mockData.push({
-                            week: week,
-                            day_of_week: day,
-                            distance: distance.toFixed(2)
-                        });
-                    }
+            // Sắp xếp hoạt động theo ngày, từ cũ đến mới
+            runActivities.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+            
+            // Tạo bảng dữ liệu theo ngày
+            const dailyData = {};
+            
+            runActivities.forEach(activity => {
+                const date = activity.start_date.slice(0, 10); // Format: YYYY-MM-DD
+                const distanceKm = activity.distance / 1000; // Convert từ m sang km
+                const paceMinPerKm = activity.average_speed > 0 
+                    ? (16.6666 / activity.average_speed).toFixed(2) // Chuyển m/s thành phút/km
+                    : 0;
+                
+                if (!dailyData[date]) {
+                    dailyData[date] = {
+                        totalDistance: 0,
+                        activities: []
+                    };
                 }
-            }
-            
-            renderBubbleChart(mockData);
-        }
-        
-        // Chuyển đổi dữ liệu hoạt động Strava thành định dạng cho biểu đồ bubble chart
-        function generateBubbleChartFromActivities(activities) {
-            // Lọc chỉ các hoạt động chạy bộ
-            const runningActivities = activities.filter(activity => {
-                return activity.type === 'Run' || activity.type === 'Run' || activity.type === 'Trail Run';
+                
+                dailyData[date].totalDistance += distanceKm;
+                dailyData[date].activities.push({
+                    id: activity.id,
+                    name: activity.name,
+                    distance: distanceKm,
+                    pace: paceMinPerKm
+                });
             });
             
-            // Tạo mảng dữ liệu theo định dạng yêu cầu
-            const chartData = [];
-            maxDistance = 0; // Đặt lại giá trị tối đa
+            // Chuyển đổi dữ liệu thành định dạng cho biểu đồ
+            calendarData = [];
             
-            runningActivities.forEach(activity => {
-                const date = new Date(activity.start_date);
-                const year = date.getFullYear();
-                const month = date.getMonth();
-                const day = date.getDate();
+            for (const date in dailyData) {
+                const dateObj = new Date(date);
+                const year = dateObj.getFullYear();
+                const month = dateObj.getMonth() + 1; // JS tháng bắt đầu từ 0
+                const day = dateObj.getDate();
                 
-                // Tính số tuần trong năm
+                // Tính toán tuần trong năm (1-52)
                 const firstDayOfYear = new Date(year, 0, 1);
-                const dayOffset = 0; // Điều chỉnh nếu cần, ví dụ: 1 nếu bắt đầu từ thứ 2
-                const weekNumber = Math.ceil(((date - firstDayOfYear) / 86400000 + firstDayOfYear.getDay() + 1 - dayOffset) / 7);
+                const pastDaysOfYear = (dateObj - firstDayOfYear) / 86400000;
+                const week = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
                 
-                // Ngày trong tuần (0 = Chủ nhật, 1 = Thứ 2, ...)
-                const dayOfWeek = date.getDay();
+                // Lấy thứ trong tuần (1-7, với 1 = thứ hai)
+                const dayOfWeek = dateObj.getDay() === 0 ? 7 : dateObj.getDay(); // Chuyển 0 (chủ nhật) thành 7
                 
-                // Khoảng cách bằng km
-                const distance = parseFloat((activity.distance / 1000).toFixed(2));
+                // Tên các thứ trong tuần
+                const daysOfWeekNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                const dayName = daysOfWeekNames[dayOfWeek - 1];
                 
-                // Cập nhật khoảng cách tối đa
-                if (distance > maxDistance) {
-                    maxDistance = distance;
-                }
-                
-                // Thêm vào mảng dữ liệu
-                chartData.push({
-                    week: weekNumber,
-                    day_of_week: dayOfWeek,
-                    distance: distance,
-                    date: date.toLocaleDateString('vi-VN'),
-                    name: activity.name
+                // Tính pace dưới dạng chuỗi "mm:ss"
+                let avgPace = 0;
+                dailyData[date].activities.forEach(act => {
+                    avgPace += parseFloat(act.pace);
                 });
+                avgPace = avgPace / dailyData[date].activities.length;
+                
+                const paceMinutes = Math.floor(avgPace);
+                const paceSeconds = Math.round((avgPace - paceMinutes) * 60);
+                const paceFormatted = `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`;
+                
+                calendarData.push({
+                    date: date,
+                    week: week,
+                    day_of_week: dayOfWeek,
+                    day_name: dayName,
+                    distance: parseFloat(dailyData[date].totalDistance.toFixed(2)),
+                    pace: paceFormatted,
+                    activities: dailyData[date].activities
+                });
+            }
+            
+            // Sắp xếp lại theo tuần và thứ
+            calendarData.sort((a, b) => {
+                if (a.week !== b.week) return a.week - b.week;
+                return a.day_of_week - b.day_of_week;
             });
-            
-            // Cập nhật nhãn khoảng cách tối đa
-            document.getElementById('maxDistanceLabel').textContent = `${maxDistance.toFixed(2)} km`;
-            
-            renderBubbleChart(chartData);
         }
         
-        // Vẽ biểu đồ bubble chart từ dữ liệu
-        function renderBubbleChart(data) {
-            // Tạo tooltip
-            const tooltip = d3.select("body")
-                .append("div")
-                .attr("class", "chart-tooltip")
-                .style("opacity", 0);
-            
-            // Xóa biểu đồ cũ nếu có
-            d3.select("#bubbleChart").html("");
-            
-            // Thiết lập kích thước và biên
-            const margin = {top: 40, right: 40, bottom: 60, left: 60};
-            const width = 700 - margin.left - margin.right;
-            const height = 600 - margin.top - margin.bottom;
-            
-            // Tạo SVG
-            const svg = d3.select("#bubbleChart")
-                .append("svg")
-                .attr("width", width + margin.left + margin.right)
-                .attr("height", height + margin.top + margin.bottom)
-                .append("g")
-                .attr("transform", `translate(${margin.left},${margin.top})`);
-            
-            // Định nghĩa trục x (ngày trong tuần)
-            const xScale = d3.scaleBand()
-                .domain([0, 1, 2, 3, 4, 5, 6])
-                .range([0, width])
-                .padding(0.1);
-            
-            // Định nghĩa trục y (tuần trong năm)
-            const yScale = d3.scaleBand()
-                .domain(d3.range(1, 53))
-                .range([0, height])
-                .padding(0.1);
-            
-            // Định nghĩa thang màu
-            const colorScale = d3.scaleSequential(d3.interpolateViridis)
-                .domain([0, maxDistance || 20]);
-            
-            // Định nghĩa thang kích thước cho các bong bóng
-            const sizeScale = d3.scaleLinear()
-                .domain([0, maxDistance || 20])
-                .range([0, 20]);
-            
-            // Vẽ trục x
-            svg.append("g")
-                .attr("transform", `translate(0,${height})`)
-                .call(d3.axisBottom(xScale)
-                    .tickFormat(d => {
-                        const days = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
-                        return days[d];
-                    }))
-                .selectAll("text")
-                .style("font-size", "12px");
-            
-            // Vẽ trục y
-            svg.append("g")
-                .call(d3.axisLeft(yScale)
-                    .tickValues(d3.range(1, 53, 4)))
-                .selectAll("text")
-                .style("font-size", "12px");
-            
-            // Thêm tiêu đề trục x
-            svg.append("text")
-                .attr("x", width / 2)
-                .attr("y", height + margin.bottom - 10)
-                .attr("text-anchor", "middle")
-                .style("font-size", "14px")
-                .text("Ngày trong tuần");
-            
-            // Thêm tiêu đề trục y
-            svg.append("text")
-                .attr("transform", "rotate(-90)")
-                .attr("x", -height / 2)
-                .attr("y", -margin.left + 15)
-                .attr("text-anchor", "middle")
-                .style("font-size", "14px")
-                .text("Tuần trong năm");
-            
-            // Thêm tiêu đề biểu đồ
-            svg.append("text")
-                .attr("x", width / 2)
-                .attr("y", -margin.top / 2)
-                .attr("text-anchor", "middle")
-                .style("font-size", "18px")
-                .style("font-weight", "bold")
-                .text("Thống kê chạy bộ theo ngày trong năm");
-            
-            // Vẽ lưới ngang
-            svg.selectAll(".y-grid")
-                .data(d3.range(1, 53))
-                .enter()
-                .append("line")
-                .attr("class", "y-grid")
-                .attr("x1", 0)
-                .attr("y1", d => yScale(d))
-                .attr("x2", width)
-                .attr("y2", d => yScale(d))
-                .attr("stroke", "#ddd")
-                .attr("stroke-opacity", 0.5);
-            
-            // Vẽ lưới dọc
-            svg.selectAll(".x-grid")
-                .data([0, 1, 2, 3, 4, 5, 6])
-                .enter()
-                .append("line")
-                .attr("class", "x-grid")
-                .attr("x1", d => xScale(d))
-                .attr("y1", 0)
-                .attr("x2", d => xScale(d))
-                .attr("y2", height)
-                .attr("stroke", "#ddd")
-                .attr("stroke-opacity", 0.5);
-            
-            // Vẽ các bong bóng
-            svg.selectAll(".bubble")
-                .data(data)
-                .enter()
-                .append("circle")
-                .attr("class", "bubble")
-                .attr("cx", d => xScale(d.day_of_week) + xScale.bandwidth() / 2)
-                .attr("cy", d => yScale(d.week) + yScale.bandwidth() / 2)
-                .attr("r", d => sizeScale(d.distance))
-                .attr("fill", d => colorScale(d.distance))
-                .attr("stroke", "#333")
-                .attr("stroke-width", 1)
-                .attr("opacity", 0.8)
-                // Thêm sự kiện tooltip
-                .on("mouseover", function(event, d) {
-                    tooltip.transition()
-                        .duration(200)
-                        .style("opacity", .9);
-                    
-                    let tooltipContent = `<strong>Ngày:</strong> ${d.date || 'N/A'}<br/>`;
-                    
-                    if (d.name) {
-                        tooltipContent += `<strong>Hoạt động:</strong> ${d.name}<br/>`;
-                    }
-                    
-                    tooltipContent += `<strong>Quãng đường:</strong> ${d.distance} km`;
-                    
-                    tooltip.html(tooltipContent)
-                        .style("left", (event.pageX + 10) + "px")
-                        .style("top", (event.pageY - 20) + "px");
-                    
-                    d3.select(this)
-                        .attr("stroke-width", 2)
-                        .attr("opacity", 1);
-                })
-                .on("mouseout", function() {
-                    tooltip.transition()
-                        .duration(500)
-                        .style("opacity", 0);
-                    
-                    d3.select(this)
-                        .attr("stroke-width", 1)
-                        .attr("opacity", 0.8);
-                });
-            
-            // Hiển thị thông báo nếu không có dữ liệu
-            if (data.length === 0) {
-                svg.append("text")
-                    .attr("x", width / 2)
-                    .attr("y", height / 2)
-                    .attr("text-anchor", "middle")
-                    .style("font-size", "16px")
-                    .text("Không có dữ liệu chạy bộ. Kết nối với Strava để tải dữ liệu thực.");
+        // Hàm hiển thị biểu đồ calendar bubble chart
+        function renderCalendarChart(weeksToShow) {
+            if (calendarData.length === 0) {
+                document.getElementById('calendarChart').innerHTML = 
+                    '<div class="error">Không có dữ liệu hoạt động để hiển thị.</div>';
+                return;
             }
+            
+            // Lọc dữ liệu dựa trên số tuần cần hiển thị
+            const weeks = [...new Set(calendarData.map(d => d.week))].sort((a, b) => b - a); // Sắp xếp giảm dần
+            const selectedWeeks = weeks.slice(0, weeksToShow);
+            const filteredData = calendarData.filter(d => selectedWeeks.includes(d.week));
+            
+            // Tạo dữ liệu cho biểu đồ
+            const plotData = [{
+                x: filteredData.map(d => d.day_name),
+                y: filteredData.map(d => d.week),
+                mode: 'markers',
+                marker: {
+                    size: filteredData.map(d => Math.sqrt(d.distance) * 10), // Kích thước bong bóng tỉ lệ với căn bậc hai của khoảng cách
+                    color: filteredData.map(d => d.distance), // Màu dựa trên khoảng cách
+                    colorscale: 'Viridis', // Bảng màu (có thể thay đổi: 'Viridis', 'Jet', 'Hot', 'Blues', v.v.)
+                    colorbar: {
+                        title: 'Quãng đường (km)',
+                        thickness: 20
+                    },
+                    opacity: 0.8,
+                    line: {
+                        color: '#444',
+                        width: 1
+                    }
+                },
+                text: filteredData.map(d => 
+                    `Ngày: ${d.date}<br>` +
+                    `Quãng đường: ${d.distance} km<br>` +
+                    `Pace: ${d.pace} min/km`
+                ),
+                hoverinfo: 'text',
+                type: 'scatter'
+            }];
+            
+            // Cấu hình bố cục
+            const layout = {
+                title: 'Biểu đồ hoạt động chạy bộ theo tuần',
+                xaxis: {
+                    title: 'Thứ trong tuần',
+                    tickvals: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    ticktext: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'],
+                    showgrid: true
+                },
+                yaxis: {
+                    title: 'Tuần',
+                    autorange: 'reversed', // Hiển thị tuần mới nhất ở trên cùng
+                    showgrid: true
+                },
+                hovermode: 'closest',
+                showlegend: false,
+                margin: {
+                    l: 50,
+                    r: 50,
+                    b: 50,
+                    t: 80,
+                    pad: 4
+                }
+            };
+            
+            // Cấu hình tùy chọn
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                modeBarButtonsToRemove: ['lasso2d', 'select2d']
+            };
+            
+            // Hiển thị biểu đồ
+            Plotly.newPlot('calendarChart', plotData, layout, config);
+            
+            // Thêm sự kiện click để hiển thị chi tiết hoạt động khi click vào bubble
+            document.getElementById('calendarChart').on('plotly_click', function(data) {
+                if (data.points.length > 0) {
+                    const pt = data.points[0];
+                    const index = pt.pointIndex;
+                    const dayData = filteredData[index];
+                    
+                    if (dayData.activities.length > 0) {
+                        // Hiển thị chi tiết hoạt động trong dialog hoặc trong một phần nào đó
+                        alert(`Hoạt động ngày ${dayData.date}:\n` + 
+                              `Tổng quãng đường: ${dayData.distance} km\n` + 
+                              `Pace trung bình: ${dayData.pace} min/km\n\n` + 
+                              `${dayData.activities.length} hoạt động`);
+                    }
+                }
+            });
         }
     </script>
 </body>
