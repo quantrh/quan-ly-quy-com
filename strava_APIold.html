@@ -7,12 +7,16 @@
     <!-- Thêm thư viện Leaflet -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <!-- Thêm D3.js cho visualizations -->
+    <!-- Thêm Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- Thêm Moment.js để xử lý ngày tháng -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <!-- Thêm d3.js để vẽ biểu đồ calendar bubble -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
             line-height: 1.6;
@@ -151,12 +155,28 @@
             display: block;
         }
         
-        /* Thêm kiểu cho visualization */
-        #statsVisualContainer {
-            margin-top: 20px;
+        /* Thêm kiểu cho phần thống kê */
+        #statsSection {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
         }
         
-        .visualization-container {
+        .dropdown-container {
+            margin-bottom: 20px;
+        }
+        
+        select {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            background-color: white;
+        }
+        
+        #calendarChart {
+            width: 100%;
+            height: 500px;
             margin-top: 20px;
             background-color: white;
             border-radius: 8px;
@@ -164,80 +184,58 @@
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
         
-        .chart-container {
-            position: relative;
-            height: 600px;
-            width: 100%;
-            margin-top: 20px;
+        .tooltip {
+            position: absolute;
+            padding: 8px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            pointer-events: none;
+            z-index: 1000;
+            font-size: 14px;
         }
         
-        .week-selector {
+        /* Thêm kiểu cho phân đoạn */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 15px;
         }
         
-        .week-selector select {
-            padding: 5px 10px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-            font-size: 16px;
-        }
-        
-        .tooltip {
-            position: absolute;
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 10px;
-            border-radius: 4px;
-            pointer-events: none;
-            font-size: 14px;
-            z-index: 1000;
-            visibility: hidden;
-        }
-        
-        /* Calendar grid */
-        .calendar-bubble {
-            position: relative;
-            width: 100%;
-            height: 500px;
-            margin-top: 20px;
-        }
-        
-        .bubble {
-            position: absolute;
-            border-radius: 50%;
-            opacity: 0.7;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-        
-        .bubble:hover {
-            opacity: 1;
-            z-index: 10;
-        }
-        
-        .day-labels, .week-labels {
-            position: absolute;
-            font-size: 12px;
-            color: #555;
-        }
-        
-        #legendContainer {
-            margin-top: 20px;
-            display: flex;
-            justify-content: center;
+        .section-title {
+            margin: 0;
+            color: #FC4C02;
         }
         
         .legend {
+            margin-top: 10px;
             display: flex;
             align-items: center;
-            margin-right: 20px;
+            justify-content: center;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 15px;
         }
         
         .legend-color {
-            width: 15px;
-            height: 15px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             margin-right: 5px;
+        }
+        
+        .day-label, .week-label {
+            font-size: 12px;
+            fill: #555;
+        }
+        
+        .calendar-grid line {
+            stroke: #ddd;
+            stroke-width: 1px;
         }
     </style>
 </head>
@@ -245,50 +243,26 @@
     <h1>Lấy dữ liệu GPS từ Strava</h1>
     
     <div class="container">
-        <p>Ứng dụng này cho phép bạn kết nối với tài khoản Strava của mình, tải về dữ liệu GPS từ các hoạt động và xem thống kê chạy bộ hàng ngày.</p>
+        <p>Ứng dụng này cho phép bạn kết nối với tài khoản Strava của mình, tải về dữ liệu GPS và xem thống kê chạy bộ hàng ngày trong năm.</p>
         
         <div id="statusMessage" class="status hidden"></div>
         
         <div id="authSection">
+            <div class="section-header">
+                <h2 class="section-title">Kết nối Strava</h2>
+            </div>
             <p>Bước 1: Kết nối với tài khoản Strava của bạn.</p>
             <button id="authorizeBtn" class="btn">Kết nối với Strava</button>
         </div>
         
-        <div id="mainSection" class="hidden">
-            <div class="tabs">
-                <div class="tab" data-section="activities">Danh sách hoạt động</div>
-                <div class="tab active" data-section="statistics">Thống kê chạy bộ</div>
+        <div id="activitiesSection" class="hidden">
+            <div class="section-header">
+                <h2 class="section-title">Hoạt động Strava</h2>
             </div>
+            <p>Bước 2: Lấy danh sách hoạt động gần đây của bạn.</p>
+            <button id="getActivitiesBtn" class="btn">Lấy danh sách hoạt động</button>
             
-            <div id="activitiesSection" class="tab-section hidden">
-                <p>Lấy danh sách hoạt động gần đây của bạn.</p>
-                <button id="getActivitiesBtn" class="btn">Lấy danh sách hoạt động</button>
-                
-                <div id="activityList"></div>
-            </div>
-            
-            <div id="statisticsSection" class="tab-section">
-                <p>Xem thống kê chạy bộ hàng ngày của bạn.</p>
-                <button id="getStatsBtn" class="btn">Cập nhật thống kê</button>
-                
-                <div id="statsVisualContainer" class="visualization-container hidden">
-                    <h3>Calendar Bubble Chart - Số KM chạy hàng ngày</h3>
-                    
-                    <div class="week-selector">
-                        <label for="weekRange">Chọn khoảng thời gian: </label>
-                        <select id="weekRange">
-                            <option value="4">4 tuần gần nhất</option>
-                            <option value="12">12 tuần gần nhất</option>
-                            <option value="24">24 tuần gần nhất</option>
-                            <option value="52" selected>52 tuần gần nhất</option>
-                        </select>
-                    </div>
-                    
-                    <div class="calendar-bubble" id="calendarBubble"></div>
-                    <div id="tooltipDiv" class="tooltip"></div>
-                    <div id="legendContainer"></div>
-                </div>
-            </div>
+            <div id="activityList"></div>
         </div>
         
         <div id="activityDetailSection" class="hidden">
@@ -314,36 +288,50 @@
                 <div id="activityRawData"></div>
             </div>
             
-            <button id="backToListBtn" class="btn" style="margin-top: 20px;">Quay lại</button>
+            <button id="backToListBtn" class="btn" style="margin-top: 20px;">Quay lại danh sách</button>
+        </div>
+        
+        <!-- Phần thống kê chạy bộ -->
+        <div id="statsSection">
+            <div class="section-header">
+                <h2 class="section-title">Thống kê chạy bộ hàng ngày</h2>
+            </div>
+            
+            <div class="dropdown-container">
+                <label for="weekSelector">Hiển thị: </label>
+                <select id="weekSelector">
+                    <option value="4">4 tuần gần nhất</option>
+                    <option value="12">12 tuần gần nhất</option>
+                    <option value="24">24 tuần gần nhất</option>
+                    <option value="52" selected>52 tuần gần nhất</option>
+                </select>
+                <button id="viewStatsBtn" class="btn">Xem thống kê</button>
+            </div>
+            
+            <div id="calendarChart"></div>
         </div>
     </div>
     
     <script>
         // Cấu hình ứng dụng Strava
-        const clientId = '55949'; // Client ID của bạn từ Strava API
+        const clientId = '55949'; // Thay thế bằng Client ID của bạn từ Strava API
         const redirectUri = "https://quantrh.github.io/quan-ly-quy-com/strava_APIold.html";
-        const clientSecret = 'c710bdd65acd66b7ce99db734e9850f04bb5ad83'; // Client Secret của bạn
         
         // Các phần tử DOM
         const authorizeBtn = document.getElementById('authorizeBtn');
         const getActivitiesBtn = document.getElementById('getActivitiesBtn');
-        const getStatsBtn = document.getElementById('getStatsBtn');
+        const viewStatsBtn = document.getElementById('viewStatsBtn');
+        const weekSelector = document.getElementById('weekSelector');
         const activityList = document.getElementById('activityList');
         const authSection = document.getElementById('authSection');
-        const mainSection = document.getElementById('mainSection');
         const activitiesSection = document.getElementById('activitiesSection');
-        const statisticsSection = document.getElementById('statisticsSection');
         const activityDetailSection = document.getElementById('activityDetailSection');
         const activityDetailContainer = document.getElementById('activityDetailContainer');
         const activityStats = document.getElementById('activityStats');
         const activityRawData = document.getElementById('activityRawData');
         const backToListBtn = document.getElementById('backToListBtn');
         const statusMessage = document.getElementById('statusMessage');
-        const weekRange = document.getElementById('weekRange');
-        const statsVisualContainer = document.getElementById('statsVisualContainer');
-        const calendarBubble = document.getElementById('calendarBubble');
-        const tooltipDiv = document.getElementById('tooltipDiv');
-        const legendContainer = document.getElementById('legendContainer');
+        const calendarChart = document.getElementById('calendarChart');
         
         // Biến lưu trữ
         let accessToken = null;
@@ -363,11 +351,11 @@
                 exchangeCodeForToken(authorizationCode);
             }
             
-            // Thiết lập sự kiện tab trong detail view
-            document.querySelectorAll('.tab[data-tab]').forEach(tab => {
+            // Thiết lập sự kiện tab
+            document.querySelectorAll('.tab').forEach(tab => {
                 tab.addEventListener('click', function() {
                     // Xóa lớp active từ tất cả các tab
-                    document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                     
                     // Thêm lớp active vào tab được nhấp
@@ -379,34 +367,19 @@
                 });
             });
             
-            // Thiết lập sự kiện tab trong main view
-            document.querySelectorAll('.tab[data-section]').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    // Xóa lớp active từ tất cả các tab
-                    document.querySelectorAll('.tab[data-section]').forEach(t => t.classList.remove('active'));
-                    document.querySelectorAll('.tab-section').forEach(s => s.classList.add('hidden'));
-                    
-                    // Thêm lớp active vào tab được nhấp
-                    this.classList.add('active');
-                    
-                    // Hiển thị section tương ứng
-                    const sectionId = this.getAttribute('data-section') + 'Section';
-                    document.getElementById(sectionId).classList.remove('hidden');
-                });
-            });
-            
             // Thiết lập sự kiện nút quay lại
             backToListBtn.addEventListener('click', function() {
                 activityDetailSection.classList.add('hidden');
-                mainSection.classList.remove('hidden');
+                activitiesSection.classList.remove('hidden');
             });
             
-            // Thiết lập sự kiện thay đổi khoảng tuần
-            weekRange.addEventListener('change', function() {
-                if (allActivities.length > 0) {
-                    createCalendarBubbleChart(allActivities, parseInt(weekRange.value));
+            // Thiết lập sự kiện nút xem thống kê
+            viewStatsBtn.addEventListener('click', function() {
+                if (accessToken) {
+                    // Lấy toàn bộ hoạt động trong 1 năm qua để vẽ biểu đồ
+                    getYearlyActivities();
                 } else {
-                    loadActivitiesForStats();
+                    showStatus('Vui lòng kết nối với Strava trước', 'error');
                 }
             });
         });
@@ -427,21 +400,12 @@
             }
         });
         
-        // Sự kiện nút lấy thống kê
-        getStatsBtn.addEventListener('click', function() {
-            if (accessToken) {
-                loadActivitiesForStats();
-            } else {
-                showStatus('Vui lòng kết nối với Strava trước', 'error');
-            }
-        });
-        
         // Trao đổi mã xác thực lấy access token
         function exchangeCodeForToken(code) {
             const tokenUrl = 'https://www.strava.com/oauth/token';
             const data = {
                 client_id: clientId,
-                client_secret: clientSecret,
+                client_secret: 'c710bdd65acd66b7ce99db734e9850f04bb5ad83', // Thay thế bằng Client Secret của bạn
                 code: code,
                 grant_type: 'authorization_code'
             };
@@ -458,12 +422,12 @@
                 accessToken = tokenData.access_token;
                 showStatus('Đã kết nối thành công với Strava!', 'success');
                 
-                // Hiển thị phần chính
+                // Hiển thị phần lấy hoạt động
                 authSection.classList.add('hidden');
-                mainSection.classList.remove('hidden');
+                activitiesSection.classList.remove('hidden');
                 
-                // Tự động tải dữ liệu thống kê
-                loadActivitiesForStats();
+                // Tự động lấy dữ liệu cho biểu đồ thống kê
+                getYearlyActivities();
             })
             .catch(error => {
                 showStatus('Lỗi khi xác thực: ' + error.message, 'error');
@@ -491,52 +455,41 @@
             });
         }
         
-        // Lấy dữ liệu cho thống kê (nhiều hơn)
-        function loadActivitiesForStats() {
-            showStatus('Đang tải dữ liệu hoạt động cho thống kê...', 'success');
-            statsVisualContainer.classList.add('hidden');
+        // Lấy hoạt động trong 1 năm
+        function getYearlyActivities() {
+            showStatus('Đang tải dữ liệu chạy bộ trong năm...', 'success');
             
-            // Lấy số lượng hoạt động nhiều hơn cho thống kê (tối đa 200)
-            const activitiesPerPage = 100;
-            const pages = 2; // Lấy 200 hoạt động gần nhất
+            // Tính thời gian 1 năm trước
+            const now = new Date();
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(now.getFullYear() - 1);
             
-            const fetchPromises = [];
+            // Chuyển đổi thành timestamp (theo giây)
+            const after = Math.floor(oneYearAgo.getTime() / 1000);
             
-            for (let page = 1; page <= pages; page++) {
-                fetchPromises.push(
-                    fetch(`https://www.strava.com/api/v3/athlete/activities?per_page=${activitiesPerPage}&page=${page}`, {
-                        headers: {
-                            'Authorization': `Bearer ${accessToken}`
-                        }
-                    })
-                    .then(response => response.json())
+            // Lấy tất cả hoạt động từ 1 năm trước đến hiện tại
+            // Sử dụng page và per_page để lấy tất cả các hoạt động (tối đa 200 hoạt động mỗi trang)
+            fetch(`https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=200`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            })
+            .then(response => response.json())
+            .then(activities => {
+                // Lọc chỉ hoạt động chạy bộ
+                allActivities = activities.filter(activity => 
+                    activity.type === 'Run' || activity.type === 'TrailRun' || activity.type === 'VirtualRun'
                 );
-            }
-            
-            Promise.all(fetchPromises)
-                .then(results => {
-                    // Gộp tất cả kết quả
-                    allActivities = [].concat(...results);
-                    showStatus('Đã tải dữ liệu hoạt động thành công!', 'success');
-                    
-                    // Lọc chỉ lấy hoạt động chạy bộ
-                    const runActivities = allActivities.filter(activity => 
-                        activity.type === 'Run' || activity.type.includes('Run')
-                    );
-                    
-                    if (runActivities.length === 0) {
-                        showStatus('Không tìm thấy hoạt động chạy bộ nào.', 'warning');
-                        return;
-                    }
-                    
-                    // Tạo biểu đồ calendar bubble chart
-                    createCalendarBubbleChart(runActivities, parseInt(weekRange.value));
-                    statsVisualContainer.classList.remove('hidden');
-                })
-                .catch(error => {
-                    showStatus('Lỗi khi tải dữ liệu cho thống kê: ' + error.message, 'error');
-                    console.error('Error fetching activities for stats:', error);
-                });
+                
+                // Hiển thị biểu đồ calendar bubble
+                createCalendarBubbleChart();
+                
+                showStatus('Đã tải dữ liệu chạy bộ thành công!', 'success');
+            })
+            .catch(error => {
+                showStatus('Lỗi khi tải dữ liệu chạy bộ: ' + error.message, 'error');
+                console.error('Error fetching yearly activities:', error);
+            });
         }
         
         // Hiển thị danh sách hoạt động
@@ -601,12 +554,12 @@
         function viewActivityMap(activityId) {
             showStatus('Đang tải dữ liệu hoạt động...', 'success');
             
-            // Ẩn main section và hiển thị phần chi tiết
-            mainSection.classList.add('hidden');
+            // Ẩn danh sách hoạt động và hiển thị phần chi tiết
+            activitiesSection.classList.add('hidden');
             activityDetailSection.classList.remove('hidden');
             
             // Đặt tab bản đồ là tab hoạt động
-            document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelector('.tab[data-tab="map"]').classList.add('active');
             document.getElementById('mapTab').classList.add('active');
@@ -728,3 +681,88 @@
             
             // Điều chỉnh khung nhìn của bản đồ để hiển thị toàn bộ đường đi
             map.fitBounds(routeLine.getBounds());
+        }
+        
+        // Tải dữ liệu GPX
+        function downloadGpx(activityId) {
+            showStatus('Đang tải dữ liệu GPX...', 'success');
+            
+            fetch(`https://www.strava.com/api/v3/activities/${activityId}/streams?keys=latlng,time,altitude&key_by_type=true`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            })
+            .then(response => response.json())
+            .then(streams => {
+                const gpxContent = generateGpx(streams, activityId);
+                if (gpxContent) {
+                    downloadFile(gpxContent, `strava-activity-${activityId}.gpx`, 'application/gpx+xml');
+                    showStatus('Đã tải dữ liệu GPX thành công!', 'success');
+                } else {
+                    showStatus('Không thể tạo tệp GPX: Không có dữ liệu GPS', 'error');
+                }
+            })
+            .catch(error => {
+                showStatus('Lỗi khi tải dữ liệu GPX: ' + error.message, 'error');
+                console.error('Error fetching GPX data:', error);
+            });
+        }
+        
+        // Tạo tệp GPX từ dữ liệu streams
+        function generateGpx(streams, activityId) {
+            // Nếu không có dữ liệu latlng, không thể tạo GPX
+            if (!streams.latlng || !streams.latlng.data || streams.latlng.data.length === 0) {
+                return null;
+            }
+            
+            // Lấy ngày bắt đầu (sử dụng thời gian hiện tại nếu không có)
+            const startTime = new Date();
+            
+            // Tạo header GPX
+            let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx creator="Strava GPS Data Extractor" version="1.1" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>Activity ${activityId}</name>
+    <time>${startTime.toISOString()}</time>
+  </metadata>
+  <trk>
+    <name>Activity ${activityId}</name>
+    <trkseg>`;
+            
+            const latlngData = streams.latlng.data;
+            const timeData = streams.time ? streams.time.data : null;
+            const altitudeData = streams.altitude ? streams.altitude.data : null;
+            
+            // Thêm các điểm
+            for (let i = 0; i < latlngData.length; i++) {
+                const lat = latlngData[i][0];
+                const lon = latlngData[i][1];
+                
+                gpx += `
+      <trkpt lat="${lat}" lon="${lon}">`;
+                
+                // Thêm độ cao nếu có
+                if (altitudeData && i < altitudeData.length) {
+                    gpx += `
+        <ele>${altitudeData[i]}</ele>`;
+                }
+                
+                // Thêm thời gian nếu có
+                if (timeData && i < timeData.length) {
+                    const pointTime = new Date(startTime.getTime() + (timeData[i] * 1000));
+                    gpx += `
+        <time>${pointTime.toISOString()}</time>`;
+                }
+                
+                gpx += `
+      </trkpt>`;
+            }
+            
+            // Kết thúc tệp GPX
+            gpx += `
+    </trkseg>
+  </trk>
+</gpx>`;
+            
+            return gpx;
+        }
