@@ -814,98 +814,131 @@
         }
         
         // Hàm hiển thị biểu đồ calendar bubble chart
-        function renderCalendarChart(weeksToShow) {
-            if (calendarData.length === 0) {
-                document.getElementById('calendarChart').innerHTML = 
-                    '<div class="error">Không có dữ liệu hoạt động để hiển thị.</div>';
-                return;
-            }
-            
-            // Lọc dữ liệu dựa trên số tuần cần hiển thị
-            const weeks = [...new Set(calendarData.map(d => d.week))].sort((a, b) => b - a); // Sắp xếp giảm dần
-            const selectedWeeks = weeks.slice(0, weeksToShow);
-            const filteredData = calendarData.filter(d => selectedWeeks.includes(d.week));
-            
-            // Tạo dữ liệu cho biểu đồ
-            const plotData = [{
-                x: filteredData.map(d => d.day_name),
-                y: filteredData.map(d => d.week),
-                mode: 'markers',
-                marker: {
-                    size: filteredData.map(d => Math.sqrt(d.distance) * 10), // Kích thước bong bóng tỉ lệ với căn bậc hai của khoảng cách
-                    color: filteredData.map(d => d.distance), // Màu dựa trên khoảng cách
-                    colorscale: 'Viridis', // Bảng màu (có thể thay đổi: 'Viridis', 'Jet', 'Hot', 'Blues', v.v.)
-                    colorbar: {
-                        title: 'Quãng đường (km)',
-                        thickness: 20
-                    },
-                    opacity: 0.8,
-                    line: {
-                        color: '#444',
-                        width: 1
-                    }
-                },
-                text: filteredData.map(d => 
-                    `Ngày: ${d.date}<br>` +
-                    `Quãng đường: ${d.distance} km<br>` +
-                    `Pace: ${d.pace} min/km`
-                ),
-                hoverinfo: 'text',
-                type: 'scatter'
-            }];
-            
-            // Cấu hình bố cục
-            const layout = {
-                title: 'Biểu đồ hoạt động chạy bộ theo tuần',
-                xaxis: {
-                    title: 'Thứ trong tuần',
-                    tickvals: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    ticktext: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'],
-                    showgrid: true
-                },
-                yaxis: {
-                    title: 'Tuần',
-                    autorange: 'reversed', // Hiển thị tuần mới nhất ở trên cùng
-                    showgrid: true
-                },
-                hovermode: 'closest',
-                showlegend: false,
-                margin: {
-                    l: 50,
-                    r: 50,
-                    b: 50,
-                    t: 80,
-                    pad: 4
-                }
-            };
-            
-            // Cấu hình tùy chọn
-            const config = {
-                responsive: true,
-                displayModeBar: true,
-                modeBarButtonsToRemove: ['lasso2d', 'select2d']
-            };
-            
-            // Hiển thị biểu đồ
-            Plotly.newPlot('calendarChart', plotData, layout, config);
-            
-            // Thêm sự kiện click để hiển thị chi tiết hoạt động khi click vào bubble
-            document.getElementById('calendarChart').on('plotly_click', function(data) {
-                if (data.points.length > 0) {
-                    const pt = data.points[0];
-                    const index = pt.pointIndex;
-                    const dayData = filteredData[index];
-                    
-                    if (dayData.activities.length > 0) {
-                        // Hiển thị chi tiết hoạt động trong dialog hoặc trong một phần nào đó
-                        alert(`Hoạt động ngày ${dayData.date}:\n` + 
-                              `Tổng quãng đường: ${dayData.distance} km\n` + 
-                              `Pace trung bình: ${dayData.pace} min/km\n\n` + 
-                              `${dayData.activities.length} hoạt động`);
-                    }
-                }
-            });
+       // Thay đổi hàm renderCalendarChart() tại dòng 621
+function renderCalendarChart(weeksToShow) {
+    if (calendarData.length === 0) {
+        document.getElementById('calendarChart').innerHTML = 
+            '<div class="error">Không có dữ liệu hoạt động để hiển thị.</div>';
+        return;
+    }
+    
+    // Tìm tuần gần đây nhất trong dữ liệu
+    const allDates = calendarData.map(d => new Date(d.date));
+    const latestDate = new Date(Math.max.apply(null, allDates));
+    console.log("Ngày gần nhất:", latestDate);
+    
+    // Tính tuần hiện tại và khoảng tuần cần hiển thị
+    const currentYear = latestDate.getFullYear();
+    const firstDayOfYear = new Date(currentYear, 0, 1);
+    const pastDaysOfYear = (latestDate - firstDayOfYear) / 86400000;
+    const currentWeek = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+    
+    // Tính khoảng tuần cần hiển thị
+    const minWeek = Math.max(1, currentWeek - weeksToShow + 1);
+    const maxWeek = currentWeek;
+    
+    console.log("Hiển thị từ tuần", minWeek, "đến tuần", maxWeek);
+    
+    // Lọc dữ liệu dựa trên khoảng tuần cần hiển thị
+    const filteredData = calendarData.filter(d => {
+        // Chỉ lấy dữ liệu của năm hiện tại để tránh xung đột số tuần giữa các năm
+        const recordDate = new Date(d.date);
+        const recordYear = recordDate.getFullYear();
+        
+        if (recordYear < currentYear) {
+            // Đối với các bản ghi của năm trước
+            return false;
+        } else if (recordYear > currentYear) {
+            // Đối với các bản ghi của năm sau (trường hợp hiếm)
+            return true;
+        } else {
+            // Đối với các bản ghi của năm hiện tại
+            return d.week >= minWeek && d.week <= maxWeek;
         }
+    });
+    
+    console.log("Số lượng dữ liệu sau khi lọc:", filteredData.length);
+    
+    // Tạo dữ liệu cho biểu đồ
+    const plotData = [{
+        x: filteredData.map(d => d.day_name),
+        y: filteredData.map(d => d.week),
+        mode: 'markers',
+        marker: {
+            size: filteredData.map(d => Math.sqrt(d.distance) * 10), // Kích thước bong bóng tỉ lệ với căn bậc hai của khoảng cách
+            color: filteredData.map(d => d.distance), // Màu dựa trên khoảng cách
+            colorscale: 'Viridis', // Bảng màu (có thể thay đổi: 'Viridis', 'Jet', 'Hot', 'Blues', v.v.)
+            colorbar: {
+                title: 'Quãng đường (km)',
+                thickness: 20
+            },
+            opacity: 0.8,
+            line: {
+                color: '#444',
+                width: 1
+            }
+        },
+        text: filteredData.map(d => 
+            `Ngày: ${d.date}<br>` +
+            `Quãng đường: ${d.distance} km<br>` +
+            `Pace: ${d.pace} min/km`
+        ),
+        hoverinfo: 'text',
+        type: 'scatter'
+    }];
+    
+    // Cấu hình bố cục
+    const layout = {
+        title: `Biểu đồ hoạt động chạy bộ (${weeksToShow} tuần gần nhất)`,
+        xaxis: {
+            title: 'Thứ trong tuần',
+            tickvals: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            ticktext: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'],
+            showgrid: true
+        },
+        yaxis: {
+            title: 'Tuần',
+            autorange: 'reversed', // Hiển thị tuần mới nhất ở trên cùng
+            showgrid: true
+        },
+        hovermode: 'closest',
+        showlegend: false,
+        margin: {
+            l: 50,
+            r: 50,
+            b: 50,
+            t: 80,
+            pad: 4
+        }
+    };
+    
+    // Cấu hình tùy chọn
+    const config = {
+        responsive: true,
+        displayModeBar: true,
+        modeBarButtonsToRemove: ['lasso2d', 'select2d']
+    };
+    
+    // Hiển thị biểu đồ
+    Plotly.newPlot('calendarChart', plotData, layout, config);
+    
+    // Thêm sự kiện click để hiển thị chi tiết hoạt động khi click vào bubble
+    document.getElementById('calendarChart').on('plotly_click', function(data) {
+        if (data.points.length > 0) {
+            const pt = data.points[0];
+            const index = pt.pointIndex;
+            const dayData = filteredData[index];
+            
+            if (dayData.activities.length > 0) {
+                // Hiển thị chi tiết hoạt động trong dialog hoặc trong một phần nào đó
+                alert(`Hoạt động ngày ${dayData.date}:\n` + 
+                      `Tổng quãng đường: ${dayData.distance} km\n` + 
+                      `Pace trung bình: ${dayData.pace} min/km\n\n` + 
+                      `${dayData.activities.length} hoạt động`);
+            }
+        }
+    });
+}
     </script>
 </body>
 </html>
