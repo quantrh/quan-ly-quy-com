@@ -316,7 +316,7 @@
             updateCalendarChartBtn.addEventListener('click', function() {
                 const selectedWeeks = parseInt(weekSelector.value);
                 showStatus('Đang cập nhật biểu đồ...', 'success');
-                (selectedWeeks);
+                renderCalendarChart(selectedWeeks);
             });
             
             // Thêm nút mới vào giao diện để hiển thị calendar chart
@@ -386,7 +386,7 @@ activitiesSection.insertBefore(debugBtn, activityList);
                 
                 // Xử lý dữ liệu và hiển thị biểu đồ
                 processActivitiesData();
-                (selectedWeeks);
+                renderCalendarChart(selectedWeeks);
             });
             
             // Thêm nút vào phần hoạt động
@@ -941,11 +941,8 @@ function renderCalendarChart(weeksToShow) {
         title: `Biểu đồ hoạt động chạy bộ (${weeksToShow} tuần gần nhất)`,
         xaxis: {
             title: 'Thứ trong tuần',
-            // Đặt thứ tự hiển thị: thứ 7 và chủ nhật ở bên trái
-            categoryarray: ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-            categoryorder: 'array',
-            tickvals: ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-            ticktext: ['Thứ 7', 'CN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'],
+            tickvals: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            ticktext: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'],
             showgrid: true
         },
         yaxis: {
