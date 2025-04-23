@@ -278,12 +278,19 @@
         // Biến lưu trữ dữ liệu biểu đồ
         let calendarData = [];
        
-        // Hàm định dạng ngày theo kiểu Việt Nam
+    // Hàm định dạng ngày theo kiểu Việt Nam với điều chỉnh múi giờ
 function formatVietnameseDate(dateString) {
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
+    // Tạo đối tượng Date từ chuỗi ngày
+    const utcDate = new Date(dateString);
+    
+    // Chuyển đổi sang múi giờ Việt Nam (UTC+7)
+    // Việt Nam có múi giờ GMT+7, nên cần thêm 7 giờ vào UTC
+    const vietnamOffset = 7 * 60 * 60 * 1000; // 7 giờ tính bằng mili giây
+    const vietnamDate = new Date(utcDate.getTime() + vietnamOffset);
+    
+    const day = vietnamDate.getUTCDate();
+    const month = vietnamDate.getUTCMonth() + 1;
+    const year = vietnamDate.getUTCFullYear();
     
     // Định dạng dd/MM/yyyy - kiểu Việt Nam phổ biến
     return `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
