@@ -830,8 +830,13 @@ activitiesSection.insertBefore(debugBtn, activityList);
                 const dayOfWeek = dateObj.getDay() === 0 ? 7 : dateObj.getDay(); // Chuyển 0 (chủ nhật) thành 7
                 
                 // Tên các thứ trong tuần
-                const daysOfWeekNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                const dayName = daysOfWeekNames[dayOfWeek - 1];
+               const daysOfWeekNames = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+              // Và thay đổi cách ánh xạ từ dayOfWeek sang dayName
+let dayIndex;
+if (dayOfWeek === 6) dayIndex = 0;      // Thứ 7 (Saturday)
+else if (dayOfWeek === 7) dayIndex = 1; // Chủ nhật (Sunday)
+else dayIndex = dayOfWeek + 1;          // Các ngày còn lại được dịch sang phải 2 vị trí
+const dayName = daysOfWeekNames[dayIndex];
                 
                 // Tính pace dưới dạng chuỗi "mm:ss"
                 let avgPace = 0;
