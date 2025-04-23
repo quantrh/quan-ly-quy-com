@@ -277,6 +277,17 @@
         
         // Biến lưu trữ dữ liệu biểu đồ
         let calendarData = [];
+       
+        // Hàm định dạng ngày theo kiểu Việt Nam
+function formatVietnameseDate(dateString) {
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    
+    // Định dạng dd/MM/yyyy - kiểu Việt Nam phổ biến
+    return `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
+}
         
         // Xử lý khi trang được tải
         document.addEventListener('DOMContentLoaded', function() {
@@ -918,8 +929,7 @@ function renderCalendarChart(weeksToShow) {
     
     console.log("Số lượng dữ liệu sau khi lọc:", filteredData.length);
     
-    // Tiếp tục phần còn lại của hàm renderCalendarChart() không thay đổi
-    // Tạo dữ liệu cho biểu đồ
+    // Tạo dữ liệu cho biểu đồ với định dạng ngày Việt Nam
     const plotData = [{
         x: filteredData.map(d => d.day_name),
         y: filteredData.map(d => d.week),
@@ -939,7 +949,7 @@ function renderCalendarChart(weeksToShow) {
             }
         },
         text: filteredData.map(d => 
-            `Ngày: ${d.date}<br>` +
+            `Ngày: ${formatVietnameseDate(d.date)}<br>` +
             `Quãng đường: ${d.distance} km<br>` +
             `Pace: ${d.pace} min/km`
         ),
@@ -991,7 +1001,8 @@ function renderCalendarChart(weeksToShow) {
             
             if (dayData.activities.length > 0) {
                 // Hiển thị chi tiết hoạt động trong dialog hoặc trong một phần nào đó
-                alert(`Hoạt động ngày ${dayData.date}:\n` + 
+                // Sử dụng định dạng ngày Việt Nam
+                alert(`Hoạt động ngày ${formatVietnameseDate(dayData.date)}:\n` + 
                       `Tổng quãng đường: ${dayData.distance} km\n` + 
                       `Pace trung bình: ${dayData.pace} min/km\n\n` + 
                       `${dayData.activities.length} hoạt động`);
