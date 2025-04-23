@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giả lập GPS Chạy bộ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .input-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .map-section {
+            margin-bottom: 20px;
+            height: 400px;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            border-radius: 5px;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+        .info-display {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9f7ef;
+            border-radius: 5px;
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .progress {
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            width: 0%;
+            transition: width 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        .point-info {
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        @media (max-width: 600px) {
+            .point-info {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Giả lập GPS Chạy bộ</h1>
+        
+        <div class="input-section">
+            <h2>Tải lên tệp GPX</h2>
+            <input type="file" id="gpxFile" accept=".gpx">
+            <div id="fileStatus" class="status">Chưa có tệp nào được chọn</div>
+        </div>
+        
+        <div class="map-section">
+            <div id="map"></div>
+        </div>
+        
+        <div class="controls">
+            <div class="speed-control">
+                <label for="speedFactor">Tốc độ giả lập:</label>
+                <input type="range" id="speedFactor" min="1" max="50" value="10">
+                <span id="speedValue">10x</span>
+            </div>
+            
+            <button id="startBtn" disabled>Bắt đầu giả lập</button>
+            <button id="pauseBtn" disabled>Tạm dừng</button>
+            <button id="stopBtn" disabled>Dừng lại</button>
+            
+            <div class="progress-bar">
+                <div id="progress" class="progress">0%</div>
+            </div>
+        </div>
+        
+        <div class="info-display">
+            <h3>Thông tin hiện tại</h3>
+            <div class="point-info">
+                <div>
+                    <p>Vĩ độ: <span id="currentLat">-</span></p>
+                    <p>Kinh độ: <span id="currentLng">-</span></p>
+                </div>
+                <div>
+                    <p>Độ cao: <span id="currentEle">-</span> m</p>
+                    <p>Thời gian: <span id="currentTime">-</span></p>
+                </div>
+                <div>
+                    <p>Tốc độ: <span id="currentSpeed">-</span> km/h</p>
+                    <p>Khoảng cách: <span id="totalDistance">-</span> km</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Biến toàn cục
+        let gpxData = null;
+        let trackPoints = [];
+        let currentPointIndex = 0;
+        let simulationInterval = null;
+        let map = null;
+        let marker = null;
+        let path = null;
+        let isSimulating = false;
+        let totalDistance = 0;
+        let originalPositionMethod = null;
+
+        // Khởi tạo ứng dụng khi trang đã tải xong
+        document.addEventListener('DOMContentLoaded', () => {
+            // Khởi tạo map
+            initMap();
+            
+            // Xử lý tải file GPX
+            document.getElementById('gpxFile').addEventListener('change', handleFileUpload);
+            
+            // Xử lý sự kiện nút bấm
+            document.getElementById('startBtn').addEventListener('click', startSimulation);
+            document.getElementById('pauseBtn').addEventListener('click', pauseSimulation);
+            document.getElementById('stopBtn').addEventListener('click', stopSimulation);
+            
+            // Xử lý thay đổi tốc độ
+            document.getElementById('speedFactor').addEventListener('input', updateSpeedDisplay);
+        });
+
+        // Khởi tạo bản đồ Google Maps
+        function initMap() {
+            // Dùng OpenStreetMap thay thế Google Maps vì không cần API key
+            map = L.map('map').setView([21.0285, 105.8542], 13); // Mặc định hiển thị Hà Nội
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            marker = L.marker([21.0285, 105.8542]).addTo(map);
+        }
+
+        // Xử lý khi người dùng tải file GPX lên
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const contents = e.target.result;
+                parseGPX(contents);
+            };
+            
+            reader.readAsText(file);
+            document.getElementById('fileStatus').textContent = `Đã chọn: ${file.name}`;
+        }
+
+        // Phân tích file GPX
+        function parseGPX(gpxString) {
+            const parser = new DOMParser();
+            gpxData = parser.parseFromString(gpxString, "text/xml");
+            
+            // Lấy tất cả các điểm trong track
+            const trkpts = gpxData.getElementsByTagName('trkpt');
+            trackPoints = [];
+            
+            if (trkpts.length === 0) {
+                alert("Không tìm thấy điểm track trong file GPX!");
+                return;
+            }
+            
+            let lastPoint = null;
+            totalDistance = 0;
+            
+            for (let i = 0; i < trkpts.length; i++) {
+                const trkpt = trkpts[i];
+                const lat = parseFloat(trkpt.getAttribute('lat'));
+                const lon = parseFloat(trkpt.getAttribute('lon'));
+                const eleElements = trkpt.getElementsByTagName('ele');
+                const timeElements = trkpt.getElementsByTagName('time');
+                
+                const ele = eleElements.length > 0 ? parseFloat(eleElements[0].textContent) : 0;
+                const time = timeElements.length > 0 ? new Date(timeElements[0].textContent) : null;
+                
+                const point = {
+                    lat,
+                    lon,
+                    ele,
+                    time
+                };
+                
+                // Tính khoảng cách giữa các điểm
+                if (lastPoint) {
+                    const distance = calculateDistance(
+                        lastPoint.lat, lastPoint.lon,
+                        point.lat, point.lon
+                    );
+                    totalDistance += distance;
+                    point.distanceFromStart = totalDistance;
+                } else {
+                    point.distanceFromStart = 0;
+                }
+                
+                trackPoints.push(point);
+                lastPoint = point;
+            }
+            
+            // Hiển thị đường đi trên bản đồ
+            displayTrackOnMap();
+            
+            // Hiển thị tổng quãng đường
+            document.getElementById('totalDistance').textContent = totalDistance.toFixed(2);
+            
+            // Kích hoạt nút bắt đầu
+            document.getElementById('startBtn').disabled = false;
+            
+            console.log(`Đã phân tích ${trackPoints.length} điểm từ file GPX`);
+        }
+
+        // Hiển thị đường đi trên bản đồ
+        function displayTrackOnMap() {
+            if (!trackPoints.length) return;
+            
+            // Tạo mảng điểm cho đường đi
+            const points = trackPoints.map(p => [p.lat, p.lon]);
+            
+            // Vẽ đường đi
+            if (path) {
+                map.removeLayer(path);
+            }
+            
+            path = L.polyline(points, {color: 'blue'}).addTo(map);
+            
+            // Cập nhật vị trí marker về điểm bắt đầu
+            marker.setLatLng([trackPoints[0].lat, trackPoints[0].lon]);
+            
+            // Điều chỉnh bản đồ để hiển thị toàn bộ đường đi
+            map.fitBounds(path.getBounds());
+        }
+
+        // Bắt đầu giả lập GPS
+        function startSimulation() {
+            if (!trackPoints.length) return;
+            
+            if (!isSimulating) {
+                // Lưu method định vị GPS gốc
+                if (!originalPositionMethod) {
+                    originalPositionMethod = navigator.geolocation.getCurrentPosition;
+                }
+                
+                // Ghi đè phương thức getCurrentPosition để giả lập GPS
+                navigator.geolocation.getCurrentPosition = function(success, error, options) {
+                    if (currentPointIndex < trackPoints.length) {
+                        const position = {
+                            coords: {
+                                latitude: trackPoints[currentPointIndex].lat,
+                                longitude: trackPoints[currentPointIndex].lon,
+                                altitude: trackPoints[currentPointIndex].ele,
+                                accuracy: 10,
+                                altitudeAccuracy: 10,
+                                heading: 0,
+                                speed: calculateSpeed(currentPointIndex)
+                            },
+                            timestamp: new Date().getTime()
+                        };
+                        
+                        success(position);
+                    } else if (error) {
+                        error({ code: 2, message: "Position unavailable" });
+                    }
+                };
+                
+                // Ghi đè phương thức watchPosition để liên tục cập nhật vị trí
+                navigator.geolocation.watchPosition = function(success, error, options) {
+                    const watchId = setInterval(() => {
+                        if (currentPointIndex < trackPoints.length) {
+                            const position = {
+                                coords: {
+                                    latitude: trackPoints[currentPointIndex].lat,
+                                    longitude: trackPoints[currentPointIndex].lon,
+                                    altitude: trackPoints[currentPointIndex].ele,
+                                    accuracy: 10,
+                                    altitudeAccuracy: 10,
+                                    heading: 0,
+                                    speed: calculateSpeed(currentPointIndex)
+                                },
+                                timestamp: new Date().getTime()
+                            };
+                            
+                            success(position);
+                        } else {
+                            clearInterval(watchId);
+                            if (error) error({ code: 2, message: "Position unavailable" });
+                        }
+                    }, 1000);
+                    
+                    return watchId;
+                };
+                
+                // Ghi đè phương thức clearWatch để dừng việc theo dõi vị trí
+                navigator.geolocation.clearWatch = function(watchId) {
+                    clearInterval(watchId);
+                };
+                
+                isSimulating = true;
+                
+                // Bắt đầu mô phỏng chuyển động
+                simulateMovement();
+                
+                // Cập nhật trạng thái nút
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = false;
+            } else {
+                // Tiếp tục giả lập sau khi tạm dừng
+                simulateMovement();
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = false;
+            }
+        }
+
+        // Mô phỏng chuyển động dọc theo đường đi
+        function simulateMovement() {
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+            }
+            
+            const speedFactor = parseInt(document.getElementById('speedFactor').value);
+            
+            simulationInterval = setInterval(() => {
+                if (currentPointIndex < trackPoints.length - 1) {
+                    currentPointIndex++;
+                    
+                    // Cập nhật vị trí marker
+                    const currentPoint = trackPoints[currentPointIndex];
+                    marker.setLatLng([currentPoint.lat, currentPoint.lon]);
+                    
+                    // Tự động di chuyển bản đồ theo marker
+                    map.panTo([currentPoint.lat, currentPoint.lon]);
+                    
+                    // Cập nhật thông tin hiển thị
+                    updateInfoDisplay();
+                    
+                    // Cập nhật thanh tiến trình
+                    const progress = (currentPointIndex / (trackPoints.length - 1)) * 100;
+                    document.getElementById('progress').style.width = `${progress}%`;
+                    document.getElementById('progress').textContent = `${Math.round(progress)}%`;
+                } else {
+                    // Kết thúc giả lập khi đã đi hết đường
+                    clearInterval(simulationInterval);
+                    isSimulating = false;
+                    
+                    // Cập nhật trạng thái nút
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('pauseBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    
+                    // Khôi phục API định vị gốc
+                    if (originalPositionMethod) {
+                        navigator.geolocation.getCurrentPosition = originalPositionMethod;
+                    }
+                    
+                    alert("Giả lập GPS đã hoàn thành!");
+                }
+            }, 1000 / speedFactor); // Tốc độ càng cao, thời gian càng ngắn
+        }
+
+        // Tạm dừng giả lập
+        function pauseSimulation() {
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+            }
+        }
+
+        // Dừng giả lập và đặt lại
+        function stopSimulation() {
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+            }
+            
+            // Đặt lại vị trí về điểm bắt đầu
+            currentPointIndex = 0;
+            isSimulating = false;
+            
+            // Đặt lại marker về điểm bắt đầu
+            if (trackPoints.length > 0) {
+                marker.setLatLng([trackPoints[0].lat, trackPoints[0].lon]);
+                map.panTo([trackPoints[0].lat, trackPoints[0].lon]);
+            }
+            
+            // Đặt lại API định vị gốc
+            if (originalPositionMethod) {
+                navigator.geolocation.getCurrentPosition = originalPositionMethod;
+            }
+            
+            // Cập nhật thông tin hiển thị
+            updateInfoDisplay();
+            
+            // Đặt lại thanh tiến trình
+            document.getElementById('progress').style.width = "0%";
+            document.getElementById('progress').textContent = "0%";
+            
+            // Cập nhật trạng thái nút
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = true;
+        }
+
+        // Cập nhật hiển thị tốc độ
+        function updateSpeedDisplay() {
+            const speedFactor = document.getElementById('speedFactor').value;
+            document.getElementById('speedValue').textContent = `${speedFactor}x`;
+            
+            // Nếu đang mô phỏng, cập nhật lại tốc độ
+            if (isSimulating && simulationInterval) {
+                pauseSimulation();
+                startSimulation();
+            }
+        }
+
+        // Cập nhật thông tin hiển thị
+        function updateInfoDisplay() {
+            if (currentPointIndex < trackPoints.length) {
+                const point = trackPoints[currentPointIndex];
+                
+                document.getElementById('currentLat').textContent = point.lat.toFixed(6);
+                document.getElementById('currentLng').textContent = point.lon.toFixed(6);
+                document.getElementById('currentEle').textContent = point.ele ? point.ele.toFixed(1) : '-';
+                
+                // Hiển thị thời gian nếu có
+                document.getElementById('currentTime').textContent = point.time 
+                    ? point.time.toLocaleTimeString() 
+                    : '-';
+                
+                // Hiển thị tốc độ
+                const speed = calculateSpeed(currentPointIndex);
+                document.getElementById('currentSpeed').textContent = speed ? speed.toFixed(1) : '-';
+                
+                // Hiển thị khoảng cách đã đi
+                document.getElementById('totalDistance').textContent = point.distanceFromStart.toFixed(2);
+            }
+        }
+
+        // Tính tốc độ tại điểm hiện tại (km/h)
+        function calculateSpeed(index) {
+            if (index <= 0 || index >= trackPoints.length) return 0;
+            
+            const current = trackPoints[index];
+            const prev = trackPoints[index - 1];
+            
+            // Nếu không có thông tin thời gian, không thể tính tốc độ
+            if (!current.time || !prev.time) return 0;
+            
+            const distance = calculateDistance(prev.lat, prev.lon, current.lat, current.lon); // km
+            const timeSeconds = (current.time - prev.time) / 1000; // seconds
+            
+            if (timeSeconds <= 0) return 0;
+            
+            // Tính tốc độ km/h
+            return (distance / timeSeconds) * 3600;
+        }
+
+        // Tính khoảng cách giữa hai điểm (km) sử dụng công thức Haversine
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Bán kính trái đất (km)
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+                    
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Chuyển đổi độ sang radian
+        function toRad(degrees) {
+            return degrees * (Math.PI / 180);
+        }
+    </script>
+    
+    <!-- Thêm thư viện Leaflet để hiển thị bản đồ -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</head>
+</body>
+</html>
