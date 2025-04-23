@@ -908,35 +908,24 @@ function renderCalendarChart(weeksToShow) {
     
     console.log("Số lượng dữ liệu sau khi lọc:", filteredData.length);
     
-    // THAY ĐỔI TRẬT TỰ NGÀY TRONG TUẦN - ĐƯA THỨ 7 VÀ CHỦ NHẬT SANG TRÁI
-    // Tạo mảng thứ tự ngày với thứ 7 và chủ nhật ở bên trái
-    const daysOfWeekNames = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-    const daysOfWeekDisplay = ['Thứ 7', 'CN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
-    
+    // TẠO BỐ CỤC LƯỚI TUẦN VÀ NGÀY CHÍNH XÁC
     // Tạo mảng tuần hiển thị
     const weeks = [];
     for (let i = minWeek; i <= maxWeek; i++) {
         weeks.push(i);
     }
     
-    // Xây dựng dữ liệu lưới mới với vị trí đã điều chỉnh
+    // Tạo các điểm dữ liệu cho lưới tuần/ngày
     const gridData = [];
+    const daysOfWeekNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     
+    // Xây dựng điểm dữ liệu từ dữ liệu đã lọc
     filteredData.forEach(d => {
-        // Ánh xạ day_of_week sang vị trí mới trong mảng daysOfWeekNames
-        // day_of_week: 1=Mon, 2=Tue, ..., 6=Sat, 7=Sun
-        let newDayIndex;
-        if (d.day_of_week === 6) { // Thứ 7
-            newDayIndex = 0;
-        } else if (d.day_of_week === 7) { // Chủ nhật
-            newDayIndex = 1;
-        } else { // Các ngày còn lại (1-5) dịch sang phải 2 vị trí
-            newDayIndex = d.day_of_week + 1;
-        }
-        
+        // Đảm bảo day_of_week đúng với chỉ số trong mảng daysOfWeekNames
+        const dayIndex = d.day_of_week === 7 ? 6 : d.day_of_week - 1;
         gridData.push({
-            x: daysOfWeekNames[newDayIndex],
-            y: d.week,
+            x: daysOfWeekNames[dayIndex],  // Đảm bảo đúng ngày trong tuần
+            y: d.week,                     // Số tuần
             distance: d.distance,
             pace: d.pace,
             date: d.date,
@@ -977,11 +966,11 @@ function renderCalendarChart(weeksToShow) {
         title: `Biểu đồ hoạt động chạy bộ (${weeksToShow} tuần gần nhất)`,
         xaxis: {
             title: 'Thứ trong tuần',
-            tickvals: daysOfWeekNames,
-            ticktext: daysOfWeekDisplay,
-            // Đảm bảo thứ tự ngày theo thứ tự mới (Thứ 7, CN ở đầu)
+            tickvals: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            ticktext: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'],
+            // Đảm bảo thứ tự ngày luôn nhất quán
             categoryorder: 'array',
-            categoryarray: daysOfWeekNames
+            categoryarray: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
         },
         yaxis: {
             title: 'Tuần',
