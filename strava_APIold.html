@@ -779,88 +779,103 @@ activitiesSection.insertBefore(debugBtn, activityList);
         }
         
         // Xử lý dữ liệu hoạt động để tạo calendar bubble chart
-        function processActivitiesData() {
-            // Lọc để chỉ lấy các hoạt động chạy bộ (Run)
-            const runActivities = activitiesData.filter(activity => activity.type === 'Run');
-            
-            // Sắp xếp hoạt động theo ngày, từ cũ đến mới
-            runActivities.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
-            
-            // Tạo bảng dữ liệu theo ngày
-            const dailyData = {};
-            
-            runActivities.forEach(activity => {
-                const date = activity.start_date.slice(0, 10); // Format: YYYY-MM-DD
-                const distanceKm = activity.distance / 1000; // Convert từ m sang km
-                const paceMinPerKm = activity.average_speed > 0 
-                    ? (16.6666 / activity.average_speed).toFixed(2) // Chuyển m/s thành phút/km
-                    : 0;
-                
-                if (!dailyData[date]) {
-                    dailyData[date] = {
-                        totalDistance: 0,
-                        activities: []
-                    };
-                }
-                
-                dailyData[date].totalDistance += distanceKm;
-                dailyData[date].activities.push({
-                    id: activity.id,
-                    name: activity.name,
-                    distance: distanceKm,
-                    pace: paceMinPerKm
-                });
-            });
-            
-            // Chuyển đổi dữ liệu thành định dạng cho biểu đồ
-            calendarData = [];
-            
-            for (const date in dailyData) {
-                const dateObj = new Date(date);
-                const year = dateObj.getFullYear();
-                const month = dateObj.getMonth() + 1; // JS tháng bắt đầu từ 0
-                const day = dateObj.getDate();
-                
-                // Tính toán tuần trong năm (1-52)
-                const firstDayOfYear = new Date(year, 0, 1);
-                const pastDaysOfYear = (dateObj - firstDayOfYear) / 86400000;
-                const week = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-                
-                // Lấy thứ trong tuần (1-7, với 1 = thứ hai)
-                const dayOfWeek = dateObj.getDay() === 0 ? 7 : dateObj.getDay(); // Chuyển 0 (chủ nhật) thành 7
-                
-                // Tên các thứ trong tuần
-                const daysOfWeekNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                const dayName = daysOfWeekNames[dayOfWeek - 1];
-                
-                // Tính pace dưới dạng chuỗi "mm:ss"
-                let avgPace = 0;
-                dailyData[date].activities.forEach(act => {
-                    avgPace += parseFloat(act.pace);
-                });
-                avgPace = avgPace / dailyData[date].activities.length;
-                
-                const paceMinutes = Math.floor(avgPace);
-                const paceSeconds = Math.round((avgPace - paceMinutes) * 60);
-                const paceFormatted = `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`;
-                
-                calendarData.push({
-                    date: date,
-                    week: week,
-                    day_of_week: dayOfWeek,
-                    day_name: dayName,
-                    distance: parseFloat(dailyData[date].totalDistance.toFixed(2)),
-                    pace: paceFormatted,
-                    activities: dailyData[date].activities
-                });
-            }
-            
-            // Sắp xếp lại theo tuần và thứ
-            calendarData.sort((a, b) => {
-                if (a.week !== b.week) return a.week - b.week;
-                return a.day_of_week - b.day_of_week;
-            });
+       // Hàm được sửa lại - thay thế toàn bộ hàm processActivitiesData() hiện tại bằng hàm này
+function processActivitiesData() {
+    // Lọc để chỉ lấy các hoạt động chạy bộ (Run)
+    const runActivities = activitiesData.filter(activity => activity.type === 'Run');
+    
+    // Sắp xếp hoạt động theo ngày, từ cũ đến mới
+    runActivities.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+    
+    // Tạo bảng dữ liệu theo ngày
+    const dailyData = {};
+    
+    runActivities.forEach(activity => {
+        const date = activity.start_date.slice(0, 10); // Format: YYYY-MM-DD
+        const distanceKm = activity.distance / 1000; // Convert từ m sang km
+        const paceMinPerKm = activity.average_speed > 0 
+            ? (16.6666 / activity.average_speed).toFixed(2) // Chuyển m/s thành phút/km
+            : 0;
+        
+        if (!dailyData[date]) {
+            dailyData[date] = {
+                totalDistance: 0,
+                activities: []
+            };
         }
+        
+        dailyData[date].totalDistance += distanceKm;
+        dailyData[date].activities.push({
+            id: activity.id,
+            name: activity.name,
+            distance: distanceKm,
+            pace: paceMinPerKm
+        });
+    });
+    
+    // Chuyển đổi dữ liệu thành định dạng cho biểu đồ
+    calendarData = [];
+    
+    for (const date in dailyData) {
+        const dateObj = new Date(date);
+        
+        // Sử dụng phương pháp tính tuần ISO
+        const isoWeek = getISOWeek(dateObj);
+        
+        // Sử dụng phương pháp tính ngày trong tuần ISO (1 = Thứ 2, 7 = Chủ Nhật)
+        const dayOfWeek = getISODayOfWeek(dateObj);
+        
+        // Tên các thứ trong tuần
+        const daysOfWeekNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const dayName = daysOfWeekNames[dayOfWeek - 1];
+        
+        // Tính pace dưới dạng chuỗi "mm:ss"
+        let avgPace = 0;
+        dailyData[date].activities.forEach(act => {
+            avgPace += parseFloat(act.pace);
+        });
+        avgPace = avgPace / dailyData[date].activities.length;
+        
+        const paceMinutes = Math.floor(avgPace);
+        const paceSeconds = Math.round((avgPace - paceMinutes) * 60);
+        const paceFormatted = `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`;
+        
+        calendarData.push({
+            date: date,
+            week: isoWeek, // Sử dụng tuần ISO
+            day_of_week: dayOfWeek, // Sử dụng ngày ISO trong tuần
+            day_name: dayName,
+            distance: parseFloat(dailyData[date].totalDistance.toFixed(2)),
+            pace: paceFormatted,
+            activities: dailyData[date].activities
+        });
+    }
+    
+    // Sắp xếp lại theo tuần và thứ
+    calendarData.sort((a, b) => {
+        if (a.week !== b.week) return a.week - b.week;
+        return a.day_of_week - b.day_of_week;
+    });
+}
+
+        // Thêm hai hàm mới để tính tuần theo chuẩn ISO
+// Phương pháp tính tuần chuẩn ISO
+function getISOWeek(date) {
+    // Sao chép ngày để không ảnh hưởng đến ngày gốc
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    // Đặt ngày về thứ 5 của tuần hiện tại
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    // Lấy ngày đầu tiên của năm
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    // Tính số ngày kể từ ngày đầu tiên của năm
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return weekNo;
+}
+
+// Hàm tính ngày của tuần theo ISO (1 = Thứ 2, 7 = Chủ Nhật)
+function getISODayOfWeek(date) {
+    return date.getDay() || 7; // Nếu getDay() trả về 0 (Chủ Nhật), đổi thành 7
+}
         
         // Hàm hiển thị biểu đồ calendar bubble chart
        // Thay đổi hàm renderCalendarChart() tại dòng 621
@@ -872,15 +887,12 @@ function renderCalendarChart(weeksToShow) {
     }
     
     // Tìm tuần gần đây nhất trong dữ liệu
-    const allDates = calendarData.map(d => new Date(d.date));
-    const latestDate = new Date(Math.max.apply(null, allDates));
-    console.log("Ngày gần nhất:", latestDate);
+    const latestDate = new Date(Math.max(...calendarData.map(d => new Date(d.date))));
+    console.log("Ngày gần nhất:", latestDate.toISOString().slice(0, 10));
     
-    // Tính tuần hiện tại và khoảng tuần cần hiển thị
-    const currentYear = latestDate.getFullYear();
-    const firstDayOfYear = new Date(currentYear, 0, 1);
-    const pastDaysOfYear = (latestDate - firstDayOfYear) / 86400000;
-    const currentWeek = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+    // Tính tuần hiện tại theo chuẩn ISO
+    const currentWeek = getISOWeek(latestDate);
+    console.log("Tuần ISO hiện tại:", currentWeek);
     
     // Tính khoảng tuần cần hiển thị
     const minWeek = Math.max(1, currentWeek - weeksToShow + 1);
@@ -890,33 +902,32 @@ function renderCalendarChart(weeksToShow) {
     
     // Lọc dữ liệu dựa trên khoảng tuần cần hiển thị
     const filteredData = calendarData.filter(d => {
-        // Chỉ lấy dữ liệu của năm hiện tại để tránh xung đột số tuần giữa các năm
         const recordDate = new Date(d.date);
         const recordYear = recordDate.getFullYear();
+        const currentYear = latestDate.getFullYear();
         
         if (recordYear < currentYear) {
-            // Đối với các bản ghi của năm trước
+            // Kiểm tra xem tuần này có phải là tuần cuối của năm trước kéo sang năm nay không
             return false;
         } else if (recordYear > currentYear) {
-            // Đối với các bản ghi của năm sau (trường hợp hiếm)
             return true;
         } else {
-            // Đối với các bản ghi của năm hiện tại
             return d.week >= minWeek && d.week <= maxWeek;
         }
     });
     
     console.log("Số lượng dữ liệu sau khi lọc:", filteredData.length);
     
+    // Tiếp tục phần còn lại của hàm renderCalendarChart() không thay đổi
     // Tạo dữ liệu cho biểu đồ
     const plotData = [{
         x: filteredData.map(d => d.day_name),
         y: filteredData.map(d => d.week),
         mode: 'markers',
         marker: {
-            size: filteredData.map(d => Math.sqrt(d.distance) * 10), // Kích thước bong bóng tỉ lệ với căn bậc hai của khoảng cách
-            color: filteredData.map(d => d.distance), // Màu dựa trên khoảng cách
-            colorscale: 'Viridis', // Bảng màu (có thể thay đổi: 'Viridis', 'Jet', 'Hot', 'Blues', v.v.)
+            size: filteredData.map(d => Math.sqrt(d.distance) * 10), 
+            color: filteredData.map(d => d.distance),
+            colorscale: 'Viridis',
             colorbar: {
                 title: 'Quãng đường (km)',
                 thickness: 20
