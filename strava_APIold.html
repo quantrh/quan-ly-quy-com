@@ -7,7 +7,7 @@
     <!-- Thêm thư viện Leaflet -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <!-- Thêm thư viện D3.js -->
+    <!-- Thêm thư viện D3.js cho biểu đồ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <style>
         body {
@@ -151,75 +151,70 @@
             display: block;
         }
         
-        /* CSS cho đồ thị năm */
-        #yearlyStatsSection {
+        /* Thêm kiểu cho biểu đồ nhiệt */
+        #yearlyStatSection {
+            margin-top: 30px;
+        }
+
+        #heatmap {
+            overflow-x: auto;
             margin-top: 20px;
         }
-        
-        #yearlyStatsContainer {
-            background-color: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-        
-        .year-chart-container {
-            width: 100%;
-            overflow-x: auto;
-        }
-        
-        #yearChart {
-            min-height: 500px;
-            min-width: 700px;
-        }
-        
+
         .day-circle {
-            fill: #FC4C02;
-            opacity: 0.7;
-        }
-        
-        .day-circle:hover {
-            opacity: 1;
-            stroke: #333;
+            stroke: #fff;
             stroke-width: 1px;
         }
-        
-        .day-label {
-            font-size: 10px;
-            text-anchor: middle;
-            fill: white;
-            pointer-events: none;
+
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 15px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 5px;
         }
         
-        .month-label, .week-label, .day-header {
-            font-size: 12px;
-            text-anchor: middle;
+        .heatmap-container {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
-        
-        .month-label, .day-header {
+
+        .heatmap-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .heatmap-title {
+            font-size: 18px;
             font-weight: bold;
+            color: #FC4C02;
         }
-        
-        .year-selector {
-            margin-bottom: 15px;
+
+        .heatmap-controls {
+            display: flex;
+            gap: 10px;
         }
-        
-        .chart-loading {
-            text-align: center;
-            padding: 50px;
-            font-style: italic;
-            color: #777;
-        }
-        
-        .chart-tooltip {
-            position: absolute;
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 8px;
-            border-radius: 4px;
+
+        .week-labels, .day-labels {
             font-size: 12px;
-            pointer-events: none;
-            z-index: 1000;
+            text-anchor: middle;
         }
     </style>
 </head>
@@ -239,9 +234,40 @@
         <div id="activitiesSection" class="hidden">
             <p>Bước 2: Lấy danh sách hoạt động gần đây của bạn.</p>
             <button id="getActivitiesBtn" class="btn">Lấy danh sách hoạt động</button>
-            <button id="getYearlyStatsBtn" class="btn">Xem thống kê năm</button>
             
             <div id="activityList"></div>
+
+            <!-- Thêm section cho thống kê năm -->
+            <div id="yearlyStatSection" class="hidden">
+                <h3>Thống kê luyện tập trong năm</h3>
+                <div class="heatmap-container">
+                    <div class="heatmap-header">
+                        <div class="heatmap-title">Đồ thị nhiệt chạy bộ trong năm</div>
+                        <div class="heatmap-controls">
+                            <select id="yearSelect" class="btn" style="padding: 5px 10px;"></select>
+                        </div>
+                    </div>
+                    <div id="heatmap"></div>
+                    <div class="heatmap-legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #e6f7ff;"></div>
+                            <span>0-5km</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #91d5ff;"></div>
+                            <span>5-10km</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #1890ff;"></div>
+                            <span>10-15km</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #0050b3;"></div>
+                            <span>>15km</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <div id="activityDetailSection" class="hidden">
@@ -269,23 +295,6 @@
             
             <button id="backToListBtn" class="btn" style="margin-top: 20px;">Quay lại danh sách</button>
         </div>
-        
-        <!-- Thêm phần cho đồ thị năm -->
-        <div id="yearlyStatsSection" class="hidden">
-            <h2>Thống kê luyện tập trong năm</h2>
-            
-            <div class="year-selector">
-                <label for="yearSelect">Chọn năm: </label>
-                <select id="yearSelect" class="btn" style="padding: 5px 10px; margin-right: 10px;"></select>
-                <button id="backToActivitiesBtn" class="btn">Quay lại hoạt động</button>
-            </div>
-            
-            <div id="yearlyStatsContainer">
-                <div class="year-chart-container">
-                    <div id="yearChart"></div>
-                </div>
-            </div>
-        </div>
     </div>
     
     <script>
@@ -296,26 +305,24 @@
         // Các phần tử DOM
         const authorizeBtn = document.getElementById('authorizeBtn');
         const getActivitiesBtn = document.getElementById('getActivitiesBtn');
-        const getYearlyStatsBtn = document.getElementById('getYearlyStatsBtn');
         const activityList = document.getElementById('activityList');
         const authSection = document.getElementById('authSection');
         const activitiesSection = document.getElementById('activitiesSection');
         const activityDetailSection = document.getElementById('activityDetailSection');
-        const yearlyStatsSection = document.getElementById('yearlyStatsSection');
         const activityDetailContainer = document.getElementById('activityDetailContainer');
         const activityStats = document.getElementById('activityStats');
         const activityRawData = document.getElementById('activityRawData');
         const backToListBtn = document.getElementById('backToListBtn');
-        const backToActivitiesBtn = document.getElementById('backToActivitiesBtn');
-        const yearSelect = document.getElementById('yearSelect');
         const statusMessage = document.getElementById('statusMessage');
+        const yearlyStatSection = document.getElementById('yearlyStatSection');
+        const yearSelect = document.getElementById('yearSelect');
         
         // Biến lưu trữ
         let accessToken = null;
         let map = null;
         let currentActivityData = null;
         let allActivities = [];
-        let yearlyActivities = {};
+        let yearlyData = {};
         
         // Xử lý khi trang được tải
         document.addEventListener('DOMContentLoaded', function() {
@@ -351,29 +358,17 @@
                 activitiesSection.classList.remove('hidden');
             });
             
-            // Thiết lập sự kiện nút quay lại từ thống kê năm
-            backToActivitiesBtn.addEventListener('click', function() {
-                yearlyStatsSection.classList.add('hidden');
-                activitiesSection.classList.remove('hidden');
-            });
-            
-            // Thiết lập sự kiện thay đổi năm
+            // Thiết lập sự kiện chọn năm
             yearSelect.addEventListener('change', function() {
-                renderYearChart(this.value);
-            });
-            
-            // Thiết lập sự kiện nút xem thống kê năm
-            getYearlyStatsBtn.addEventListener('click', function() {
-                showYearlyStats();
+                const selectedYear = this.value;
+                renderHeatmap(selectedYear);
             });
         });
         
         // Sự kiện nút kết nối với Strava
         authorizeBtn.addEventListener('click', function() {
-            console.log("Nút kết nối được nhấn");
             const scope = 'read,activity:read';
             const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
-            console.log("Redirect URL:", authUrl);
             window.location.href = authUrl;
         });
         
@@ -422,21 +417,186 @@
         function getActivities() {
             showStatus('Đang tải danh sách hoạt động...', 'success');
             
-            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=10', {
+            // Lấy hoạt động trong 1 năm, với số lượng lớn hơn
+            fetch('https://www.strava.com/api/v3/athlete/activities?per_page=200', {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
                 }
             })
             .then(response => response.json())
             .then(activities => {
-                showStatus('Đã tải danh sách hoạt động thành công!', 'success');
                 allActivities = activities;
-                displayActivities(activities);
+                showStatus('Đã tải danh sách hoạt động thành công!', 'success');
+                displayActivities(activities.slice(0, 10)); // Chỉ hiển thị 10 hoạt động đầu tiên
+                
+                // Xử lý dữ liệu cho biểu đồ nhiệt
+                processYearlyData(activities);
+                yearlyStatSection.classList.remove('hidden');
             })
             .catch(error => {
                 showStatus('Lỗi khi tải hoạt động: ' + error.message, 'error');
                 console.error('Error fetching activities:', error);
             });
+        }
+        
+        // Xử lý dữ liệu cho biểu đồ nhiệt
+        function processYearlyData(activities) {
+            // Nhóm hoạt động theo năm
+            yearlyData = {};
+            
+            activities.forEach(activity => {
+                // Chỉ xử lý hoạt động chạy bộ
+                if (activity.type === 'Run') {
+                    const date = new Date(activity.start_date);
+                    const year = date.getFullYear();
+                    const week = getWeekNumber(date);
+                    const day = date.getDay() || 7; // Đổi 0 (Chủ Nhật) thành 7
+                    const distance = activity.distance / 1000; // Đổi từ m sang km
+                    
+                    if (!yearlyData[year]) {
+                        yearlyData[year] = {};
+                    }
+                    
+                    if (!yearlyData[year][week]) {
+                        yearlyData[year][week] = {};
+                    }
+                    
+                    // Nếu có nhiều hoạt động trong cùng một ngày, cộng dồn khoảng cách
+                    if (yearlyData[year][week][day]) {
+                        yearlyData[year][week][day].distance += distance;
+                    } else {
+                        yearlyData[year][week][day] = {
+                            distance: distance,
+                            date: date
+                        };
+                    }
+                }
+            });
+            
+            // Điền các tùy chọn năm vào dropdown
+            yearSelect.innerHTML = '';
+            const years = Object.keys(yearlyData).sort((a, b) => b - a); // Sắp xếp năm từ mới đến cũ
+            
+            if (years.length === 0) {
+                // Nếu không có dữ liệu, thêm năm hiện tại
+                const currentYear = new Date().getFullYear();
+                yearSelect.innerHTML = `<option value="${currentYear}">${currentYear}</option>`;
+            } else {
+                years.forEach(year => {
+                    yearSelect.innerHTML += `<option value="${year}">${year}</option>`;
+                });
+                
+                // Render biểu đồ nhiệt cho năm đầu tiên
+                renderHeatmap(years[0]);
+            }
+        }
+        
+        // Lấy số tuần trong năm
+        function getWeekNumber(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
+        
+        // Render biểu đồ nhiệt
+        function renderHeatmap(year) {
+            const heatmapContainer = document.getElementById('heatmap');
+            heatmapContainer.innerHTML = '';
+            
+            const yearData = yearlyData[year] || {};
+            
+            // Cài đặt kích thước và margin
+            const cellSize = 40;
+            const margin = { top: 40, right: 30, bottom: 30, left: 50 };
+            const width = cellSize * 8 + margin.left + margin.right; // 7 ngày + margin cho nhãn
+            const height = cellSize * 53 + margin.top + margin.bottom; // 52 tuần + 1 cho nhãn
+            
+            // Tạo SVG container
+            const svg = d3.select('#heatmap')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Tạo skala màu
+            const colorScale = d3.scaleThreshold()
+                .domain([5, 10, 15]) // Ngưỡng km
+                .range(['#e6f7ff', '#91d5ff', '#1890ff', '#0050b3']);
+            
+            // Tạo skala kích thước
+            const sizeScale = d3.scaleLinear()
+                .domain([0, 30]) // Giả sử tối đa 30km
+                .range([5, cellSize/2 - 2]);
+            
+            // Thêm nhãn ngày trong tuần
+            const daysOfWeek = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'];
+            svg.selectAll('.day-label')
+                .data(daysOfWeek)
+                .enter()
+                .append('text')
+                .attr('class', 'day-labels')
+                .attr('x', (d, i) => margin.left + cellSize * (i + 0.5))
+                .attr('y', margin.top / 2)
+                .text(d => d);
+            
+            // Dữ liệu cho biểu đồ
+            const heatmapData = [];
+            
+            // Điền dữ liệu
+            for (let week = 1; week <= 52; week++) {
+                for (let day = 1; day <= 7; day++) {
+                    const dayData = yearData[week] && yearData[week][day];
+                    heatmapData.push({
+                        week: week,
+                        day: day,
+                        distance: dayData ? dayData.distance.toFixed(2) : 0,
+                        date: dayData ? dayData.date : null
+                    });
+                }
+            }
+            
+            // Thêm nhãn tuần
+            svg.selectAll('.week-label')
+                .data([...Array(52).keys()].map(i => i + 1))
+                .enter()
+                .append('text')
+                .attr('class', 'week-labels')
+                .attr('x', margin.left / 2)
+                .attr('y', (d) => margin.top + cellSize * (d - 0.5))
+                .text(d => d);
+            
+            // Thêm các ô cho mỗi ngày
+            const days = svg.selectAll('.day')
+                .data(heatmapData)
+                .enter()
+                .append('g')
+                .attr('class', 'day')
+                .attr('transform', d => `translate(${margin.left + (d.day - 1) * cellSize}, ${margin.top + (d.week - 1) * cellSize})`);
+            
+            // Thêm các hình tròn cho các ngày có hoạt động
+            days.filter(d => d.distance > 0)
+                .append('circle')
+                .attr('class', 'day-circle')
+                .attr('cx', cellSize / 2)
+                .attr('cy', cellSize / 2)
+                .attr('r', d => sizeScale(d.distance))
+                .attr('fill', d => colorScale(d.distance))
+                .append('title')  // Tooltip khi hover
+                .text(d => {
+                    const dateStr = d.date ? d.date.toLocaleDateString('vi-VN') : '';
+                    return `${dateStr}: ${d.distance} km`;
+                });
+            
+            // Thêm text hiển thị số km
+            days.filter(d => d.distance > 0)
+                .append('text')
+                .attr('x', cellSize / 2)
+                .attr('y', cellSize / 2 + 4) // Điều chỉnh để căn giữa text
+                .attr('text-anchor', 'middle')
+                .attr('font-size', '10px')
+                .attr('fill', d => d.distance > 10 ? 'white' : 'black')
+                .text(d => d.distance);
         }
         
         // Hiển thị danh sách hoạt động
@@ -551,504 +711,4 @@
                             <strong>Tốc độ trung bình:</strong> ${(activityDetails.average_speed * 3.6).toFixed(2)} km/h
                         </div>
                         <div class="activity-info-item">
-                            <strong>Tốc độ tối đa:</strong> ${(activityDetails.max_speed * 3.6).toFixed(2)} km/h
-                        </div>
-                        <div class="activity-info-item">
-                            <strong>Độ cao tăng:</strong> ${activityDetails.total_elevation_gain} m
-                        </div>
-                        <div class="activity-info-item">
-                            <strong>Calo tiêu thụ:</strong> ${activityDetails.calories || 'N/A'} kcal
-                        </div>
-                    </div>
-                `;
-                
-                // Hiển thị dữ liệu thô
-                activityRawData.innerHTML = `<pre>${JSON.stringify(activityDetails, null, 2)}</pre>`;
-                
-                // Tải dữ liệu streams cho bản đồ
-                return fetch(`https://www.strava.com/api/v3/activities/${activityId}/streams?keys=latlng,time,altitude&key_by_type=true`, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`
-                    }
-                });
-            })
-            .then(response => response.json())
-            .then(streams => {
-                showStatus('Đã tải dữ liệu thành công!', 'success');
-                renderMap(streams);
-            })
-            .catch(error => {
-                showStatus('Lỗi khi tải dữ liệu: ' + error.message, 'error');
-                console.error('Error fetching activity data:', error);
-            });
-        }
-        
-        // Hiển thị bản đồ
-        function renderMap(streams) {
-            // Nếu không có dữ liệu latlng, không thể hiển thị bản đồ
-            if (!streams.latlng || !streams.latlng.data || streams.latlng.data.length === 0) {
-                document.getElementById('map').innerHTML = '<div class="error">Không có dữ liệu GPS cho hoạt động này.</div>';
-                return;
-            }
-            
-            // Tạo hoặc cập nhật bản đồ
-            if (map) {
-                map.remove(); // Xóa bản đồ cũ nếu tồn tại
-            }
-            
-            map = L.map('map');
-            
-            // Thêm lớp bản đồ OpenStreetMap
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
-            
-            // Tạo mảng điểm cho đường đi
-            const latlngData = streams.latlng.data;
-            const routePoints = latlngData.map(point => L.latLng(point[0], point[1]));
-            
-            // Tạo đường đi trên bản đồ
-            const routeLine = L.polyline(routePoints, {
-                color: '#FC4C02',
-                weight: 5,
-                opacity: 0.7
-            }).addTo(map);
-            
-            // Thêm điểm bắt đầu và kết thúc
-            const startPoint = routePoints[0];
-            const endPoint = routePoints[routePoints.length - 1];
-            
-            L.marker(startPoint, {
-                title: 'Điểm bắt đầu'
-            }).addTo(map).bindPopup('Điểm bắt đầu');
-            
-            L.marker(endPoint, {
-                title: 'Điểm kết thúc'
-            }).addTo(map).bindPopup('Điểm kết thúc');
-            
-            // Điều chỉnh khung nhìn của bản đồ để hiển thị toàn bộ đường đi
-            map.fitBounds(routeLine.getBounds());
-        }
-        
-        // Tải dữ liệu GPX
-        function downloadGpx(activityId) {
-            showStatus('Đang tải dữ liệu GPX...', 'success');
-            
-            fetch(`https://www.strava.com/api/v3/activities/${activityId}/streams?keys=latlng,time,altitude&key_by_type=true`, {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`
-                }
-            })
-            .then(response => response.json())
-            .then(streams => {
-                const gpxContent = generateGpx(streams, activityId);
-                if (gpxContent) {
-                    downloadFile(gpxContent, `strava-activity-${activityId}.gpx`, 'application/gpx+xml');
-                    showStatus('Đã tải dữ liệu GPX thành công!', 'success');
-                } else {
-                    showStatus('Không thể tạo tệp GPX: Không có dữ liệu GPS', 'error');
-                }
-            })
-            .catch(error => {
-                showStatus('Lỗi khi tải dữ liệu GPX: ' + error.message, 'error');
-                console.error('Error fetching GPX data:', error);
-            });
-        }
-        
-        // Tạo tệp GPX từ dữ liệu streams
-        function generateGpx(streams, activityId) {
-            // Nếu không có dữ liệu latlng, không thể tạo GPX
-            if (!streams.latlng || !streams.latlng.data || streams.latlng.data.length === 0) {
-                return null;
-            }
-            
-            // Lấy ngày bắt đầu (sử dụng thời gian hiện tại nếu không có)
-            const startTime = new Date();
-            
-            // Tạo header GPX
-            let gpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx creator="Strava GPS Data Extractor" version="1.1" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
-  <metadata>
-    <name>Activity ${activityId}</name>
-    <time>${startTime.toISOString()}</time>
-  </metadata>
-  <trk>
-    <name>Activity ${activityId}</name>
-    <trkseg>`;
-            
-            const latlngData = streams.latlng.data;
-            const timeData = streams.time ? streams.time.data : null;
-            const altitudeData = streams.altitude ? streams.altitude.data : null;
-            
-            // Thêm các điểm
-            for (let i = 0; i < latlngData.length; i++) {
-                const lat = latlngData[i][0];
-                const lon = latlngData[i][1];
-                
-                gpx += `
-      <trkpt lat="${lat}" lon="${lon}">`;
-                
-                // Thêm độ cao nếu có
-                if (altitudeData && i < altitudeData.length) {
-                    gpx += `
-        <ele>${altitudeData[i]}</ele>`;
-                }
-                
-                // Thêm thời gian nếu có
-                if (timeData && i < timeData.length) {
-                    const pointTime = new Date(startTime.getTime() + (timeData[i] * 1000));
-                    gpx += `
-        <time>${pointTime.toISOString()}</time>`;
-                }
-                
-                gpx += `
-      </trkpt>`;
-            }
-            
-            // Kết thúc tệp GPX
-            gpx += `
-    </trkseg>
-  </trk>
-</gpx>`;
-            
-            return gpx;
-        }
-        
-        // Hàm tải tệp
-        function downloadFile(content, fileName, contentType) {
-            const a = document.createElement('a');
-            const file = new Blob([content], { type: contentType });
-            a.href = URL.createObjectURL(file);
-            a.download = fileName;
-            a.click();
-            URL.revokeObjectURL(a.href);
-        }
-        
-        // Hiển thị thông báo trạng thái
-        function showStatus(message, type) {
-            statusMessage.textContent = message;
-            statusMessage.className = `status ${type}`;
-            statusMessage.classList.remove('hidden');
-            
-            // Tự động ẩn sau 5 giây
-            setTimeout(() => {
-                statusMessage.classList.add('hidden');
-            }, 5000);
-        }
-        
-        // Định dạng thời gian từ giây sang HH:MM:SS
-        function formatDuration(seconds) {
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = seconds % 60;
-            
-            let result = '';
-            if (hours > 0) {
-                result += `${hours}h `;
-            }
-            if (minutes > 0 || hours > 0) {
-                result += `${minutes}m `;
-            }
-            result += `${secs}s`;
-            
-            return result;
-        }
-        
-        // Hiển thị thống kê năm
-        function showYearlyStats() {
-            if (allActivities.length === 0) {
-                showStatus('Vui lòng tải danh sách hoạt động trước', 'error');
-                return;
-            }
-            
-            // Ẩn phần danh sách hoạt động và hiển thị phần thống kê năm
-            activitiesSection.classList.add('hidden');
-            yearlyStatsSection.classList.remove('hidden');
-            
-            // Tải dữ liệu hoạt động đầy đủ (nếu cần)
-            loadFullActivityHistory();
-        }
-        
-        // Tải toàn bộ lịch sử hoạt động
-        function loadFullActivityHistory() {
-            // Hiển thị trạng thái tải
-            document.getElementById('yearChart').innerHTML = '<div class="chart-loading">Đang tải dữ liệu hoạt động...</div>';
-            
-            // Nếu đã có dữ liệu, hiển thị ngay
-            if (Object.keys(yearlyActivities).length > 0) {
-                populateYearSelector();
-                return;
-            }
-            
-            // Số trang và kích thước trang
-            const perPage = 100;
-            let page = 1;
-            let allHistoricalActivities = [];
-            
-            // Hàm tải một trang dữ liệu
-            function loadPage() {
-                fetch(`https://www.strava.com/api/v3/athlete/activities?per_page=${perPage}&page=${page}`, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`
-                    }
-                })
-                .then(response => response.json())
-                .then(activities => {
-                    if (activities.length > 0) {
-                        allHistoricalActivities = allHistoricalActivities.concat(activities);
-                        
-                        // Nếu nhận được đủ kích thước trang, tiếp tục tải trang tiếp theo
-                        if (activities.length === perPage) {
-                            page++;
-                            loadPage();
-                        } else {
-                            // Đã tải xong tất cả dữ liệu
-                            processActivitiesData(allHistoricalActivities);
-                        }
-                    } else {
-                        // Không còn dữ liệu
-                        processActivitiesData(allHistoricalActivities);
-                    }
-                })
-                .catch(error => {
-                    showStatus('Lỗi khi tải lịch sử hoạt động: ' + error.message, 'error');
-                    console.error('Error fetching activity history:', error);
-                    
-                    // Hiển thị dữ liệu đã tải nếu có
-                    if (allHistoricalActivities.length > 0) {
-                        processActivitiesData(allHistoricalActivities);
-                    }
-                });
-            }
-            
-            // Bắt đầu tải trang đầu tiên
-            loadPage();
-        }
-        
-        // Xử lý dữ liệu hoạt động
-        function processActivitiesData(activities) {
-            // Phân loại hoạt động theo năm
-            yearlyActivities = {};
-            
-            activities.forEach(activity => {
-                const date = new Date(activity.start_date);
-                const year = date.getFullYear();
-                
-                if (!yearlyActivities[year]) {
-                    yearlyActivities[year] = [];
-                }
-                
-                yearlyActivities[year].push(activity);
-            });
-            
-            // Cập nhật bộ chọn năm
-            populateYearSelector();
-        }
-        
-        // Cập nhật bộ chọn năm
-        function populateYearSelector() {
-            yearSelect.innerHTML = '';
-            
-            // Lấy các năm đã có dữ liệu
-            const years = Object.keys(yearlyActivities).sort().reverse();
-            
-            if (years.length === 0) {
-                yearSelect.innerHTML = '<option value="">Không có dữ liệu</option>';
-                document.getElementById('yearChart').innerHTML = '<div class="error">Không tìm thấy dữ liệu hoạt động nào.</div>';
-                return;
-            }
-            
-            // Thêm các tùy chọn năm
-            years.forEach(year => {
-                const option = document.createElement('option');
-                option.value = year;
-                option.textContent = year;
-                yearSelect.appendChild(option);
-            });
-            
-            // Hiển thị đồ thị cho năm đầu tiên
-            renderYearChart(years[0]);
-        }
-        
-        // Hiển thị đồ thị năm
-        function renderYearChart(year) {
-            const activities = yearlyActivities[year] || [];
-            
-            // Xóa đồ thị cũ nếu có
-            d3.select('#yearChart').html('');
-            
-            if (activities.length === 0) {
-                document.getElementById('yearChart').innerHTML = '<div class="error">Không có dữ liệu cho năm ' + year + '.</div>';
-                return;
-            }
-            
-            // Chuẩn bị dữ liệu cho đồ thị
-            const activityData = processActivityDataForYear(activities, year);
-            
-            // Tạo đồ thị
-            createYearChart(activityData, year);
-        }
-        
-        // Xử lý dữ liệu hoạt động cho một năm
-        function processActivityDataForYear(activities, year) {
-            // Tạo một mảng dữ liệu cho từng ngày trong năm
-            const daysInYear = (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) ? 366 : 365;
-            const dayData = new Array(daysInYear).fill().map(() => ({
-                activities: [],
-                totalDistance: 0,
-                totalTime: 0,
-                count: 0
-            }));
-            
-            // Thêm hoạt động vào ngày tương ứng
-            activities.forEach(activity => {
-                const date = new Date(activity.start_date);
-                if (date.getFullYear() !== parseInt(year)) return;
-                
-                const dayOfYear = getDayOfYear(date);
-                
-                dayData[dayOfYear - 1].activities.push(activity);
-                dayData[dayOfYear - 1].totalDistance += activity.distance;
-                dayData[dayOfYear - 1].totalTime += activity.moving_time;
-                dayData[dayOfYear - 1].count += 1;
-            });
-            
-            return dayData;
-        }
-        
-        // Lấy ngày trong năm (1-366)
-        function getDayOfYear(date) {
-            const start = new Date(date.getFullYear(), 0, 0);
-            const diff = date - start;
-            const oneDay = 1000 * 60 * 60 * 24;
-            return Math.floor(diff / oneDay);
-        }
-        
-        // Tạo đồ thị năm
-        function createYearChart(dayData, year) {
-            // Kích thước và lề đồ thị
-            const margin = { top: 50, right: 20, bottom: 40, left: 40 };
-            const width = 800 - margin.left - margin.right;
-            const height = 500 - margin.top - margin.bottom;
-            
-            // Tạo SVG
-            const svg = d3.select('#yearChart')
-                .append('svg')
-                .attr('width', width + margin.left + margin.right)
-                .attr('height', height + margin.top + margin.bottom)
-                .append('g')
-                .attr('transform', `translate(${margin.left},${margin.top})`);
-            
-            // Tạo tiêu đề
-            svg.append('text')
-                .attr('x', width / 2)
-                .attr('y', -margin.top / 2)
-                .attr('text-anchor', 'middle')
-                .style('font-size', '18px')
-                .style('font-weight', 'bold')
-                .text(`Hoạt động Luyện Tập Năm ${year}`);
-            
-            // Tên tháng và ngày trong tuần
-            const months = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
-            const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-            
-            // Tạo đồ thị năm dạng ô lịch (calendar heatmap)
-            const cellSize = 20;
-            const cellPadding = 2;
-            
-            // Vẽ tiêu đề ngày trong tuần
-            svg.selectAll('.day-header')
-                .data(days)
-                .enter()
-                .append('text')
-                .attr('class', 'day-header')
-                .attr('x', -30)
-                .attr('y', (d, i) => i * cellSize + cellSize / 2)
-                .attr('dy', '0.35em')
-                .text(d => d);
-            
-            // Tính toán vị trí của các ô
-            const firstDate = new Date(year, 0, 1);
-            const lastDate = new Date(year, 11, 31);
-            
-            // Tính ngày đầu tuần của năm
-            const firstDayOfWeek = firstDate.getDay();
-            
-            // Vẽ các ô cho từng ngày
-            svg.selectAll('.day')
-                .data(dayData)
-                .enter()
-                .append('g')
-                .attr('class', 'day')
-                .attr('transform', (d, i) => {
-                    const dayOfYear = i + 1;
-                    const date = new Date(year, 0, dayOfYear);
-                    const weekOfYear = Math.ceil((dayOfYear + firstDayOfWeek) / 7);
-                    const dayOfWeek = date.getDay();
-                    
-                    return `translate(${weekOfYear * cellSize}, ${dayOfWeek * cellSize})`;
-                })
-                .each(function(d, i) {
-                    const date = new Date(year, 0, i + 1);
-                    const dayOfMonth = date.getDate();
-                    const month = date.getMonth();
-                    const dayOfWeek = date.getDay();
-                    
-                    // Nếu là ngày đầu tháng, thêm tiêu đề tháng
-                    if (dayOfMonth === 1) {
-                        d3.select(this.parentNode)
-                            .append('text')
-                            .attr('class', 'month-label')
-                            .attr('x', (Math.ceil((i + firstDayOfWeek + 1) / 7)) * cellSize)
-                            .attr('y', -5)
-                            .text(months[month]);
-                    }
-                    
-                    // Vẽ ô
-                    if (d.count > 0) {
-                        // Nếu có hoạt động, vẽ ô có màu
-                        d3.select(this)
-                            .append('rect')
-                            .attr('class', 'day-cell')
-                            .attr('width', cellSize - cellPadding)
-                            .attr('height', cellSize - cellPadding)
-                            .attr('fill', function() {
-                                // Màu đậm dần theo tổng quãng đường
-                                const maxDistance = 100000; // 100km
-                                const intensity = Math.min(1, d.totalDistance / maxDistance);
-                                return d3.interpolateReds(intensity);
-                            });
-                            
-                        // Thêm tooltip khi hover
-                        d3.select(this)
-                            .append('title')
-                            .text(`${date.toLocaleDateString('vi-VN')}
-Số hoạt động: ${d.count}
-Tổng quãng đường: ${(d.totalDistance / 1000).toFixed(2)} km
-Tổng thời gian: ${formatDuration(d.totalTime)}`);
-                    } else {
-                        // Nếu không có hoạt động, vẽ ô trống
-                        d3.select(this)
-                            .append('rect')
-                            .attr('class', 'day-cell')
-                            .attr('width', cellSize - cellPadding)
-                            .attr('height', cellSize - cellPadding)
-                            .attr('fill', '#eee')
-                            .attr('stroke', '#ddd');
-                    }
-                    
-                    // Thêm số ngày vào ô
-                    d3.select(this)
-                        .append('text')
-                        .attr('class', 'day-number')
-                        .attr('x', (cellSize - cellPadding) / 2)
-                        .attr('y', (cellSize - cellPadding) / 2)
-                        .attr('text-anchor', 'middle')
-                        .attr('dy', '0.35em')
-                        .attr('font-size', '8px')
-                        .text(dayOfMonth);
-                });
-        }
-    </script>
-</body>
-</html>
+                            <strong>
