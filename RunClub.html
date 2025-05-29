@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Thống kê chạy bộ Strava</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: auto; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #f2f2f2; }
+    #login { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h2>Thống kê chạy bộ câu lạc bộ Strava (OAuth2)</h2>
+
+  <div id="login">
+    <button onclick="loginStrava()">🔐 Đăng nhập với Strava</button>
+  </div>
+
+  <div id="content" style="display:none;">
+    <label>Club ID: <input id="clubId" value="123456" /></label>
+    <button onclick="fetchClubActivities()">Lấy dữ liệu</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    // === CONFIG ===
+    const client_id = "55949";        // Thay bằng client_id của bạn
+    const redirect_uri = "https://quantrh.github.io/quan-ly-quy-com/RunClub.html";
+    const scope = "read,activity:read_all";
+    let access_token = null;
+
+    // === STEP 1: Kiểm tra nếu đang có mã code (sau khi redirect từ Strava) ===
+    window.onload = () => {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+
+      if (code) {
+        fetch("https://www.strava.com/oauth/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_id,
+            client_secret: 'c710bdd65acd66b7ce99db734e9850f04bb5ad83', // Thay bằng client_secret của bạn
+            code,
+            grant_type: "authorization_code"
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          access_token = data.access_token;
+          document.getElementById("login").style.display = "none";
+          document.getElementById("content").style.display = "block";
+        })
+        .catch(err => alert("Không lấy được token: " + err));
+      }
+    };
+
+    // === STEP 2: Mở cửa sổ đăng nhập Strava ===
+    function loginStrava() {
+      const authUrl = `https://www.strava.com/oauth/authorize?client_id=${client_id}&redirect_uri=${redirect_uri}&response_type=code&scope=${scope}`;
+      window.location.href = authUrl;
+    }
+
+    // === STEP 3: Gọi API lấy danh sách hoạt động của CLB ===
+    async function fetchClubActivities() {
+      const clubId = document.getElementById("clubId").value;
+      const res = await fetch(`https://www.strava.com/api/v3/clubs/${clubId}/activities?per_page=100`, {
+        headers: { Authorization: `Bearer ${access_token}` }
+      });
+
+      if (!res.ok) {
+        alert("Không lấy được dữ liệu. Kiểm tra token hoặc club ID.");
+        return;
+      }
+
+      const data = await res.json();
+      const weeklyStats = {};
+
+      data.forEach(activity => {
+        if (activity.type !== "Run") return;
+        const date = new Date(activity.start_date);
+        const week = `${date.getFullYear()}-W${getWeekNumber(date)}`;
+        const name = activity.athlete.firstname + " " + (activity.athlete.lastname || "");
+
+        if (!weeklyStats[week]) weeklyStats[week] = {};
+        if (!weeklyStats[week][name]) weeklyStats[week][name] = 0;
+
+        weeklyStats[week][name] += activity.distance / 1000;
+      });
+
+      renderTable(weeklyStats);
+    }
+
+    // === STEP 4: Hiển thị bảng kết quả ===
+    function renderTable(stats) {
+      let html = "<table><tr><th>Tuần</th><th>Thành viên</th><th>Số km</th></tr>";
+      Object.keys(stats).sort().reverse().forEach(week => {
+        const members = stats[week];
+        Object.keys(members).forEach(name => {
+          html += `<tr><td>${week}</td><td>${name}</td><td>${members[name].toFixed(2)} km</td></tr>`;
+        });
+      });
+      html += "</table>";
+      document.getElementById("result").innerHTML = html;
+    }
+
+    function getWeekNumber(d) {
+      d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    }
+  </script>
+</body>
+</html>
